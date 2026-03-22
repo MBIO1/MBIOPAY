@@ -1,0 +1,24 @@
+import { pgTable, serial, text, real, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const ordersTable = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  phone: text("phone").notNull(),
+  network: text("network").notNull(),
+  amount: real("amount"),
+  ugxAmount: real("ugx_amount"),
+  status: text("status").notNull().default("waiting"),
+  txid: text("txid"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertOrderSchema = createInsertSchema(ordersTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Order = typeof ordersTable.$inferSelect;
