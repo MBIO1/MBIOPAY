@@ -15,7 +15,7 @@ import { apiFetch } from "@/lib/api";
 type Network = "MTN" | "Airtel";
 type Step = 1 | 2 | 3;
 
-const MIN_USDT = 10;
+const MIN_USDT = 1;
 
 const slideVariants = {
   enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),

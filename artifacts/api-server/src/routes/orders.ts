@@ -14,7 +14,7 @@ const router: IRouter = Router();
 
 const FEE_PERCENT = 0.01;
 const MAX_TX_AMOUNT = parseFloat(process.env.MAX_TX_AMOUNT ?? "500");
-const MIN_TX_AMOUNT = parseFloat(process.env.MIN_TX_AMOUNT ?? "10");
+const MIN_TX_AMOUNT = parseFloat(process.env.MIN_TX_AMOUNT ?? "1");
 const TRADE_LIMIT_PER_MIN = parseInt(process.env.TRADE_LIMIT_PER_MIN ?? "10", 10);
 
 const UGANDA_PHONE_RE = /^256\d{9}$/;
