@@ -74,12 +74,14 @@ export function SendTab() {
   const [nameResolveFailed, setNameResolveFailed] = useState(false);
   const [nameResolveError, setNameResolveError] = useState("");
   const [resolvingName, setResolvingName] = useState(false);
+  const [nameTestMode, setNameTestMode] = useState(false);
 
   // Auto-resolve when phone + network change (debounced)
   useEffect(() => {
     setResolvedName(null);
     setNameResolveFailed(false);
     setNameResolveError("");
+    setNameTestMode(false);
     if (!/^256\d{9}$/.test(phone)) return;
 
     const t = setTimeout(async () => {
@@ -88,18 +90,19 @@ export function SendTab() {
         const data = await apiFetch(
           `/api/resolve-account?phone=${encodeURIComponent(phone)}&network=${encodeURIComponent(network)}`
         );
-        // verified=false means the lookup is unsupported (e.g. test mode) — not an error
         if (data.verified && data.accountName) {
           setResolvedName(data.accountName);
           setNameResolveFailed(false);
+          setNameTestMode(!!data.testMode);
         } else {
           setResolvedName(null);
-          setNameResolveFailed(false); // silent — don't alarm users for unverified
+          setNameResolveFailed(false);
+          setNameTestMode(false);
         }
       } catch {
-        // Network error — silently skip, don't block or alarm
         setResolvedName(null);
         setNameResolveFailed(false);
+        setNameTestMode(false);
       } finally {
         setResolvingName(false);
       }
@@ -313,7 +316,9 @@ export function SendTab() {
                     <div className="flex items-center gap-2 bg-primary/8 border border-primary/20 rounded-lg px-3 py-2">
                       <UserCheck className="w-3.5 h-3.5 text-primary shrink-0" />
                       <span className="text-xs text-primary font-semibold tracking-wide">{resolvedName}</span>
-                      <span className="text-xs text-muted-foreground ml-auto">verified by Flutterwave</span>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {nameTestMode ? "test mode" : "verified by Flutterwave"}
+                      </span>
                     </div>
                   )}
                   {nameResolveFailed && !resolvingName && (
@@ -403,7 +408,8 @@ export function SendTab() {
                         <>
                           <p className="font-bold text-foreground text-lg leading-tight">{resolvedName}</p>
                           <p className="text-xs text-primary font-medium mt-0.5 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Verified by Flutterwave
+                            <CheckCircle2 className="w-3 h-3" />
+                            {nameTestMode ? "Verified (Test Mode)" : "Verified by Flutterwave"}
                           </p>
                         </>
                       ) : nameResolveFailed ? (

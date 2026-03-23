@@ -59,13 +59,25 @@ router.get("/resolve-account", requireAuth, async (req, res) => {
     return;
   }
 
+  // Flutterwave test keys only support bank code "044" (Access Bank Nigeria).
+  // In test mode, return a mock verified response so the UI flow can be exercised.
+  const flwKey = process.env.FLW_SECRET_KEY ?? "";
+  if (flwKey.startsWith("FLWSECK_TEST")) {
+    const suffix = phone.slice(-4);
+    const mockName = network === "MTN"
+      ? `MTN SUBSCRIBER ${suffix}`
+      : `AIRTEL SUBSCRIBER ${suffix}`;
+    res.json({ accountName: mockName, accountNumber: phone, verified: true, network, testMode: true });
+    return;
+  }
+
   try {
     const response = await axios.post(
       "https://api.flutterwave.com/v3/accounts/resolve",
       { account_number: phone, account_bank: bankCode },
       {
         headers: {
-          Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
+          Authorization: `Bearer ${flwKey}`,
           "Content-Type": "application/json",
         },
         timeout: 10000,
@@ -74,7 +86,6 @@ router.get("/resolve-account", requireAuth, async (req, res) => {
 
     const data = response.data?.data;
     if (!data?.account_name) {
-      // Soft failure — verified=false lets the frontend skip the name badge without error
       res.json({ accountName: null, verified: false, network });
       return;
     }
@@ -86,7 +97,6 @@ router.get("/resolve-account", requireAuth, async (req, res) => {
       network,
     });
   } catch (err: unknown) {
-    // Soft failure — test mode or unsupported numbers just skip name verification
     logger.warn({ err, phone, network }, "Account name resolve failed — returning unverified");
     res.json({ accountName: null, verified: false, network });
   }
