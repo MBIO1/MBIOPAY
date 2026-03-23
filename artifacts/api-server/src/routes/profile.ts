@@ -7,7 +7,7 @@ import { requireAuth } from "../lib/auth-middleware";
 
 const router = Router();
 
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 const UpdateProfileSchema = z.object({
   displayName: z.string().min(1).max(60).optional(),
@@ -25,12 +25,11 @@ const SetUsernameSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers and underscores allowed"),
 });
 
-// GET /api/profile — return full profile
 router.get("/profile", requireAuth, async (req, res) => {
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.id, req.session.userId!))
+    .where(eq(usersTable.id, req.user!.id))
     .limit(1);
 
   if (!user) {
@@ -50,7 +49,6 @@ router.get("/profile", requireAuth, async (req, res) => {
   });
 });
 
-// PATCH /api/profile — update display name and/or avatar
 router.patch("/profile", requireAuth, async (req, res) => {
   const parsed = UpdateProfileSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -67,7 +65,7 @@ router.patch("/profile", requireAuth, async (req, res) => {
   const [user] = await db
     .update(usersTable)
     .set(updates)
-    .where(eq(usersTable.id, req.session.userId!))
+    .where(eq(usersTable.id, req.user!.id))
     .returning();
 
   res.json({
@@ -81,12 +79,11 @@ router.patch("/profile", requireAuth, async (req, res) => {
   });
 });
 
-// PATCH /api/profile/username — set username (one-time only)
 router.patch("/profile/username", requireAuth, async (req, res) => {
   const [currentUser] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.id, req.session.userId!))
+    .where(eq(usersTable.id, req.user!.id))
     .limit(1);
 
   if (!currentUser) {
@@ -107,7 +104,6 @@ router.patch("/profile/username", requireAuth, async (req, res) => {
 
   const { username } = parsed.data;
 
-  // Check uniqueness
   const existing = await db
     .select()
     .from(usersTable)
@@ -122,7 +118,7 @@ router.patch("/profile/username", requireAuth, async (req, res) => {
   const [user] = await db
     .update(usersTable)
     .set({ username, usernameSet: true, updatedAt: new Date() })
-    .where(eq(usersTable.id, req.session.userId!))
+    .where(eq(usersTable.id, req.user!.id))
     .returning();
 
   res.json({

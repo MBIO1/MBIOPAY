@@ -24,3 +24,9 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+MAX_TX_AMOUNT = "500"
+TRADE_LIMIT_PER_MIN = "10"
