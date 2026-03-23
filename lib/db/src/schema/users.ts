@@ -11,6 +11,10 @@ export const usersTable = pgTable("users", {
   usernameSet: boolean("username_set").notNull().default(false),
   failedAttempts: integer("failed_attempts").notNull().default(0),
   lockedUntil: timestamp("locked_until"),
+  riskScore: integer("risk_score").notNull().default(0),
+  isFrozen: boolean("is_frozen").notNull().default(false),
+  frozenAt: timestamp("frozen_at"),
+  frozenReason: text("frozen_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

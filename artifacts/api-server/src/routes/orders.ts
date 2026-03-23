@@ -7,6 +7,7 @@ import { z } from "zod";
 import { requireAuth } from "../lib/auth-middleware";
 import { getDynamicRate } from "../lib/dynamicRate";
 import { createDepositAccount, getFlutterwaveUgxBalance } from "../lib/walletWatcher";
+import { runFraudChecks, checkUserFrozen } from "../lib/fraudDetector";
 
 const ORDER_TTL_MINUTES = 30;
 
@@ -171,6 +172,17 @@ router.post("/orders", requireAuth, async (req, res) => {
     res.status(429).json({
       error: `Order limit reached — max ${TRADE_LIMIT_PER_MIN} orders per minute`,
     });
+    return;
+  }
+
+  // ── Fraud checks (pre-order) ───────────────────────────────────────────────
+  const fraud = await runFraudChecks({
+    userId: req.user!.id,
+    phone,
+    usdtAmount: expectedUsdt,
+  });
+  if (!fraud.allowed) {
+    res.status(403).json({ error: fraud.reason });
     return;
   }
 

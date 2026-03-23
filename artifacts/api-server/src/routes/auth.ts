@@ -150,6 +150,13 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
+  if (user.isFrozen) {
+    res.status(403).json({
+      error: `Your account has been suspended. ${user.frozenReason ?? "Please contact support."}`,
+    });
+    return;
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
 
   if (!valid) {
