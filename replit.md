@@ -35,9 +35,11 @@ artifacts-monorepo/
 
 ## Database Schema
 
-- **users** — email, username (unique, one-time change), passwordHash, avatarUrl (base64), failedAttempts, lockedUntil
+- **users** — email, username (unique, one-time change), passwordHash, avatarUrl (base64), failedAttempts, lockedUntil, **riskScore**, **isFrozen**, **frozenAt**, **frozenReason**
 - **refresh_tokens** — hashed refresh tokens per user (revocable, 7d TTL, token rotation)
-- **orders** — per-order TRON deposit addresses (encrypted PK), phone, network, amount, ugxAmount, status, txid
+- **orders** — per-order TRON deposit addresses (encrypted PK), phone, network, amount, ugxAmount, status, txid, expiresAt
+- **fraud_events** — audit log for all fraud signals (userId, orderId, phone, eventType, severity, details JSON, createdAt)
+- **phone_blocklist** — manually or auto-blocked phone numbers with reason and timestamp
 - `encryptedPk` is AES-256-CBC encrypted with `ENCRYPTION_KEY` env var; never returned in API responses
 
 ## Auth System
@@ -63,6 +65,42 @@ artifacts-monorepo/
 - Phone validation (Uganda `256XXXXXXXXX`) enforced on backend
 - `/orders/:id` and `/orders/recent` require auth + ownership check
 - `encryptedPk` column excluded from all API responses via explicit column select
+
+## Fraud Detection System
+
+Runs on every order creation (`src/lib/fraudDetector.ts`). 7-layer check pipeline:
+
+| Check | Rule | Response |
+|-------|------|----------|
+| Phone blocklist | Phone is on admin blocklist | Hard block (403) |
+| Frozen account | User `isFrozen = true` | Hard block (403) |
+| Phone velocity | > 5 completed payouts to same phone in 24h | Hard block (403) |
+| Cross-user phone | > 3 distinct users sending to same phone in 1h | Hard block (403) |
+| User daily velocity | > 20 orders by same user in 24h | Hard block (403) |
+| Repeated failures | > 3 failed orders in 24h | Flagged (allowed, risk +25) |
+| High-value order | Single order ≥ 200 USDT | Flagged (allowed, risk +10) |
+
+**Risk scoring**: each fraud event adds points to `users.risk_score`. At 100 points the user is auto-frozen.  
+**Login guard**: frozen users cannot log in at all — returns 403 with reason.
+
+## Admin Panel
+
+- URL: `/admin-panel?secret=ADMIN_SECRET` (served from the API server)
+- Protected by `ADMIN_SECRET` env var (header `x-admin-secret` or `?secret=` query)
+- Tabs: Overview (stats), Users (risk scores, freeze/unfreeze), Orders, Fraud Events, Blocklist
+- Actions: freeze/unfreeze user, reset risk score, block/unblock phone number
+
+Admin API endpoints (all require `x-admin-secret` header):
+- `GET /admin/overview` — system stats
+- `GET /admin/users` — all users sorted by risk score
+- `GET /admin/orders` — last 200 orders
+- `GET /admin/fraud-events` — full fraud audit log
+- `GET /admin/blocklist` — blocked phones
+- `POST /admin/block-phone` — add phone to blocklist
+- `DELETE /admin/block-phone/:phone` — remove from blocklist
+- `POST /admin/freeze/:id` — freeze user account
+- `POST /admin/unfreeze/:id` — unfreeze user account
+- `POST /admin/reset-risk/:id` — reset risk score to 0
 
 ## Wallet / Finance Architecture
 
@@ -93,6 +131,7 @@ artifacts-monorepo/
 | `MIN_HOT_BALANCE` | `1000` | Minimum hot wallet USDT |
 | `MAX_HOT_BALANCE` | `5000` | Maximum before rebalancing to cold |
 | `MAX_TX_AMOUNT` | `500` | Per-order USDT cap |
+| `MIN_TX_AMOUNT` | `1` | Minimum per-order USDT |
 | `TRADE_LIMIT_PER_MIN` | `10` | Max orders per user per minute |
 
 ## Important Notes

@@ -157,7 +157,7 @@ function ADMIN_HTML(secret: string): string {
 
 <script>
 const S = "${secret}";
-const api = (path, opts={}) => fetch(path + (path.includes("?")?"&":"?") + "secret=" + S, {
+const api = (path, opts={}) => fetch("/api" + path + (path.includes("?")?"&":"?") + "secret=" + S, {
   headers: {"Content-Type":"application/json", "x-admin-secret": S},
   ...opts
 }).then(r=>r.json());
@@ -335,7 +335,7 @@ async function blockPhone() {
 
 async function unblockPhone(phone) {
   if (!confirm("Unblock " + phone + "?")) return;
-  await fetch("/admin/block-phone/" + encodeURIComponent(phone) + "?secret=" + S, {method:"DELETE", headers:{"x-admin-secret":S}});
+  await fetch("/api/admin/block-phone/" + encodeURIComponent(phone) + "?secret=" + S, {method:"DELETE", headers:{"x-admin-secret":S}});
   loadBlocklist();
   loadOverview();
 }
