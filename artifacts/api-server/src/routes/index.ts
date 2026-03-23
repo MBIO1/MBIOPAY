@@ -3,12 +3,14 @@ import healthRouter from "./health";
 import ordersRouter from "./orders";
 import walletRouter from "./wallet";
 import authRouter from "./auth";
+import profileRouter from "./profile";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(walletRouter);
 router.use(authRouter);
+router.use(profileRouter);
 router.use(ordersRouter);
 
 export default router;
