@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import axios from "axios";
 import { db } from "@workspace/db";
 import { ordersTable } from "@workspace/db/schema";
 import { eq, desc, and, gte } from "drizzle-orm";
@@ -13,7 +14,7 @@ const router: IRouter = Router();
 
 const FEE_PERCENT = 0.01;
 const MAX_TX_AMOUNT = parseFloat(process.env.MAX_TX_AMOUNT ?? "500");
-const MIN_TX_AMOUNT = 1;
+const MIN_TX_AMOUNT = parseFloat(process.env.MIN_TX_AMOUNT ?? "10");
 const TRADE_LIMIT_PER_MIN = parseInt(process.env.TRADE_LIMIT_PER_MIN ?? "10", 10);
 
 const UGANDA_PHONE_RE = /^256\d{9}$/;
@@ -39,6 +40,55 @@ function cleanupOldKeys() {
     if (ts < cutoff) recentIdempotencyKeys.delete(key);
   }
 }
+
+const FLW_NETWORK_CODES: Record<string, string> = { MTN: "MPS", Airtel: "AIN" };
+
+router.get("/resolve-account", requireAuth, async (req, res) => {
+  const phone = (req.query.phone as string) ?? "";
+  const network = (req.query.network as string) ?? "";
+
+  if (!UGANDA_PHONE_RE.test(phone)) {
+    res.status(400).json({ error: "Invalid phone number. Use format: 256XXXXXXXXX" });
+    return;
+  }
+
+  const bankCode = FLW_NETWORK_CODES[network];
+  if (!bankCode) {
+    res.status(400).json({ error: "Invalid network. Must be MTN or Airtel" });
+    return;
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.flutterwave.com/v3/accounts/resolve",
+      { account_number: phone, account_bank: bankCode },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      }
+    );
+
+    const data = response.data?.data;
+    if (!data?.account_name) {
+      res.status(422).json({ error: "Could not retrieve account name for this number" });
+      return;
+    }
+
+    res.json({
+      accountName: data.account_name as string,
+      accountNumber: (data.account_number as string) ?? phone,
+      network,
+    });
+  } catch (err: unknown) {
+    const msg = axios.isAxiosError(err)
+      ? (err.response?.data?.message ?? err.message)
+      : "Name lookup failed";
+    res.status(502).json({ error: msg });
+  }
+});
 
 router.get("/service-status", async (_req, res) => {
   try {
