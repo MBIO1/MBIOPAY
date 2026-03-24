@@ -1,17 +1,21 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { randomUUID, createHash } from "crypto";
+import { randomUUID, createHash, randomInt } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, refreshTokensTable } from "@workspace/db/schema";
 import { eq, and, gt, lt } from "drizzle-orm";
 import { signAccess, signRefresh, verifyRefresh } from "../lib/jwt";
 import { requireAuth } from "../lib/auth-middleware";
+import { isDisposableEmail } from "../lib/disposableEmails";
+import { sendVerificationEmail } from "../lib/emailService";
+import speakeasy from "speakeasy";
 
 const router = Router();
 
 const MAX_FAILED_ATTEMPTS = 10;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+const VERIFY_CODE_TTL_MS = 15 * 60 * 1000;
 
 const SignupSchema = z.object({
   email: z.string().email("Valid email required"),
@@ -29,12 +33,17 @@ const SignupSchema = z.object({
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1).max(256),
+  totpToken: z.string().optional(),
 });
 
 function hashToken(token: string): string {
   return createHash("sha256")
     .update(token + (process.env.REFRESH_SECRET ?? ""))
     .digest("hex");
+}
+
+function generateVerifyCode(): string {
+  return String(randomInt(100000, 999999));
 }
 
 function userPayload(user: typeof usersTable.$inferSelect) {
@@ -46,6 +55,8 @@ function userPayload(user: typeof usersTable.$inferSelect) {
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     usernameSet: user.usernameSet,
+    emailVerified: user.emailVerified,
+    totpEnabled: user.totpEnabled,
     createdAt: user.createdAt,
   };
 }
@@ -64,14 +75,10 @@ async function revokeRefreshToken(token: string): Promise<void> {
 async function cleanupExpiredTokens(userId: number): Promise<void> {
   await db
     .delete(refreshTokensTable)
-    .where(
-      and(
-        eq(refreshTokensTable.userId, userId),
-        lt(refreshTokensTable.expiresAt, new Date()),
-      ),
-    );
+    .where(and(eq(refreshTokensTable.userId, userId), lt(refreshTokensTable.expiresAt, new Date())));
 }
 
+// ─── POST /api/auth/signup ──────────────────────────────────────────────────
 router.post("/auth/signup", async (req, res) => {
   const parsed = SignupSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -80,20 +87,36 @@ router.post("/auth/signup", async (req, res) => {
   }
 
   const { email, username, password } = parsed.data;
+  const emailLower = email.toLowerCase().trim();
+
+  if (isDisposableEmail(emailLower)) {
+    res.status(400).json({ error: "Disposable or temporary email addresses are not allowed. Please use a permanent email." });
+    return;
+  }
 
   const existing = await db
-    .select()
+    .select({ id: usersTable.id, emailVerified: usersTable.emailVerified })
     .from(usersTable)
-    .where(eq(usersTable.email, email.toLowerCase()))
+    .where(eq(usersTable.email, emailLower))
     .limit(1);
 
   if (existing.length > 0) {
+    if (!existing[0].emailVerified) {
+      const code = generateVerifyCode();
+      const expires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
+      await db.update(usersTable)
+        .set({ emailVerifyCode: code, emailVerifyExpires: expires, updatedAt: new Date() })
+        .where(eq(usersTable.id, existing[0].id));
+      await sendVerificationEmail(emailLower, code).catch(() => {});
+      res.status(200).json({ requiresVerification: true, email: emailLower, message: "A new verification code has been sent to your email." });
+      return;
+    }
     res.status(409).json({ error: "An account with this email already exists" });
     return;
   }
 
   const usernameExists = await db
-    .select()
+    .select({ id: usersTable.id })
     .from(usersTable)
     .where(eq(usersTable.username, username))
     .limit(1);
@@ -105,23 +128,127 @@ router.post("/auth/signup", async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
   const uid = randomUUID().slice(0, 8).toUpperCase();
+  const verifyCode = generateVerifyCode();
+  const verifyExpires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
+
+  await db.insert(usersTable).values({
+    email: emailLower,
+    username,
+    passwordHash,
+    uid,
+    emailVerified: false,
+    emailVerifyCode: verifyCode,
+    emailVerifyExpires: verifyExpires,
+  });
+
+  await sendVerificationEmail(emailLower, verifyCode).catch(() => {});
+
+  res.status(201).json({ requiresVerification: true, email: emailLower });
+});
+
+// ─── POST /api/auth/verify-email ─────────────────────────────────────────────
+router.post("/auth/verify-email", async (req, res) => {
+  const { email, code } = req.body as { email: string; code: string };
+
+  if (!email || !code) {
+    res.status(400).json({ error: "Email and code are required" });
+    return;
+  }
 
   const [user] = await db
-    .insert(usersTable)
-    .values({ email: email.toLowerCase(), username, passwordHash, uid })
-    .returning();
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email.toLowerCase().trim()))
+    .limit(1);
+
+  if (!user) {
+    res.status(404).json({ error: "Account not found" });
+    return;
+  }
+
+  if (user.emailVerified) {
+    res.status(400).json({ error: "Email is already verified" });
+    return;
+  }
+
+  if (!user.emailVerifyCode || !user.emailVerifyExpires) {
+    res.status(400).json({ error: "No verification code found. Please request a new one." });
+    return;
+  }
+
+  if (user.emailVerifyExpires < new Date()) {
+    res.status(400).json({ error: "Verification code has expired. Please request a new one." });
+    return;
+  }
+
+  if (user.emailVerifyCode !== code.trim()) {
+    res.status(422).json({ error: "Invalid verification code. Please check and try again." });
+    return;
+  }
+
+  await db.update(usersTable)
+    .set({ emailVerified: true, emailVerifyCode: null, emailVerifyExpires: null, updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
 
   const accessToken = signAccess({ id: user.id });
   const refreshToken = signRefresh({ id: user.id });
   await storeRefreshToken(user.id, refreshToken);
 
-  res.status(201).json({
+  res.json({
     accessToken,
     refreshToken,
-    user: userPayload(user),
+    user: userPayload({ ...user, emailVerified: true, emailVerifyCode: null, emailVerifyExpires: null }),
   });
 });
 
+// ─── POST /api/auth/resend-verification ──────────────────────────────────────
+router.post("/auth/resend-verification", async (req, res) => {
+  const { email } = req.body as { email: string };
+
+  if (!email) {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email.toLowerCase().trim()))
+    .limit(1);
+
+  if (!user) {
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (user.emailVerified) {
+    res.status(400).json({ error: "Email is already verified" });
+    return;
+  }
+
+  const cooldownExpiry = user.emailVerifyExpires;
+  const cooldownRemaining = cooldownExpiry
+    ? cooldownExpiry.getTime() - Date.now() - (VERIFY_CODE_TTL_MS - 60_000)
+    : 0;
+
+  if (cooldownRemaining > 0) {
+    res.status(429).json({ error: "Please wait before requesting another code." });
+    return;
+  }
+
+  const code = generateVerifyCode();
+  const expires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
+
+  await db.update(usersTable)
+    .set({ emailVerifyCode: code, emailVerifyExpires: expires, updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
+
+  await sendVerificationEmail(email.toLowerCase().trim(), code).catch(() => {});
+
+  res.json({ ok: true });
+});
+
+// ─── POST /api/auth/login ─────────────────────────────────────────────────────
 router.post("/auth/login", async (req, res) => {
   const parsed = LoginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -129,7 +256,7 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  const { email, password } = parsed.data;
+  const { email, password, totpToken } = parsed.data;
 
   const [user] = await db
     .select()
@@ -162,14 +289,8 @@ router.post("/auth/login", async (req, res) => {
   if (!valid) {
     const newAttempts = user.failedAttempts + 1;
     const locked = newAttempts >= MAX_FAILED_ATTEMPTS;
-
-    await db
-      .update(usersTable)
-      .set({
-        failedAttempts: newAttempts,
-        lockedUntil: locked ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
-        updatedAt: new Date(),
-      })
+    await db.update(usersTable)
+      .set({ failedAttempts: newAttempts, lockedUntil: locked ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null, updatedAt: new Date() })
       .where(eq(usersTable.id, user.id));
 
     if (locked) {
@@ -183,8 +304,37 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  await db
-    .update(usersTable)
+  if (!user.emailVerified) {
+    const code = generateVerifyCode();
+    const expires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
+    await db.update(usersTable)
+      .set({ emailVerifyCode: code, emailVerifyExpires: expires, updatedAt: new Date() })
+      .where(eq(usersTable.id, user.id));
+    await sendVerificationEmail(user.email, code).catch(() => {});
+    res.status(403).json({ requiresVerification: true, email: user.email, error: "Please verify your email before signing in. A new code has been sent." });
+    return;
+  }
+
+  if (user.totpEnabled && user.totpSecret) {
+    if (!totpToken) {
+      res.status(200).json({ requiresTOTP: true, email: user.email });
+      return;
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.totpSecret,
+      encoding: "base32",
+      token: totpToken,
+      window: 1,
+    });
+
+    if (!verified) {
+      res.status(422).json({ error: "Invalid authenticator code. Please try again." });
+      return;
+    }
+  }
+
+  await db.update(usersTable)
     .set({ failedAttempts: 0, lockedUntil: null, updatedAt: new Date() })
     .where(eq(usersTable.id, user.id));
 
@@ -194,13 +344,10 @@ router.post("/auth/login", async (req, res) => {
   const refreshToken = signRefresh({ id: user.id });
   await storeRefreshToken(user.id, refreshToken);
 
-  res.json({
-    accessToken,
-    refreshToken,
-    user: userPayload(user),
-  });
+  res.json({ accessToken, refreshToken, user: userPayload(user) });
 });
 
+// ─── POST /api/auth/refresh ───────────────────────────────────────────────────
 router.post("/auth/refresh", async (req, res) => {
   const { refreshToken } = req.body;
 
@@ -211,18 +358,12 @@ router.post("/auth/refresh", async (req, res) => {
 
   try {
     const payload = verifyRefresh(refreshToken);
-
     const tokenHash = hashToken(refreshToken);
+
     const [stored] = await db
       .select()
       .from(refreshTokensTable)
-      .where(
-        and(
-          eq(refreshTokensTable.tokenHash, tokenHash),
-          eq(refreshTokensTable.userId, payload.id),
-          gt(refreshTokensTable.expiresAt, new Date()),
-        ),
-      )
+      .where(and(eq(refreshTokensTable.tokenHash, tokenHash), eq(refreshTokensTable.userId, payload.id), gt(refreshTokensTable.expiresAt, new Date())))
       .limit(1);
 
     if (!stored) {
@@ -230,19 +371,13 @@ router.post("/auth/refresh", async (req, res) => {
       return;
     }
 
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, payload.id))
-      .limit(1);
-
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.id)).limit(1);
     if (!user) {
       res.status(401).json({ error: "User not found" });
       return;
     }
 
     await revokeRefreshToken(refreshToken);
-
     const newAccessToken = signAccess({ id: user.id });
     const newRefreshToken = signRefresh({ id: user.id });
     await storeRefreshToken(user.id, newRefreshToken);
@@ -253,33 +388,23 @@ router.post("/auth/refresh", async (req, res) => {
   }
 });
 
+// ─── POST /api/auth/logout ────────────────────────────────────────────────────
 router.post("/auth/logout", requireAuth, async (req, res) => {
   const { refreshToken } = req.body;
-
   if (refreshToken && typeof refreshToken === "string") {
     await revokeRefreshToken(refreshToken).catch(() => {});
   }
-
-  await db
-    .delete(refreshTokensTable)
-    .where(eq(refreshTokensTable.userId, req.user!.id))
-    .catch(() => {});
-
+  await db.delete(refreshTokensTable).where(eq(refreshTokensTable.userId, req.user!.id)).catch(() => {});
   res.json({ success: true });
 });
 
+// ─── GET /api/auth/me ─────────────────────────────────────────────────────────
 router.get("/auth/me", requireAuth, async (req, res) => {
-  const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, req.user!.id))
-    .limit(1);
-
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.id)).limit(1);
   if (!user) {
     res.status(401).json({ error: "User not found" });
     return;
   }
-
   res.json(userPayload(user));
 });
 

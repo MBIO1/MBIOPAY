@@ -39,9 +39,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
     const data = await res.json();
     localStorage.setItem(TOKEN_KEY, data.accessToken);
-    if (data.refreshToken) {
-      localStorage.setItem(REFRESH_KEY, data.refreshToken);
-    }
+    if (data.refreshToken) localStorage.setItem(REFRESH_KEY, data.refreshToken);
     return data.accessToken;
   } catch {
     clearTokens();
@@ -66,14 +64,15 @@ export async function apiFetch(path: string, opts: RequestInit = {}) {
 
   if (res.status === 401 && token) {
     const newToken = await refreshAccessToken();
-    if (newToken) {
-      res = await doFetch(newToken);
-    }
+    if (newToken) res = await doFetch(newToken);
   }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw Object.assign(new Error(body.error ?? res.statusText), { status: res.status });
+    throw Object.assign(new Error(body.error ?? res.statusText), {
+      status: res.status,
+      data: body,
+    });
   }
 
   return res.json();
@@ -87,6 +86,8 @@ export interface AuthUser {
   displayName: string | null;
   avatarUrl: string | null;
   usernameSet: boolean;
+  emailVerified: boolean;
+  totpEnabled: boolean;
   createdAt: string;
 }
 
@@ -98,22 +99,75 @@ export async function getMe(): Promise<AuthUser | null> {
   }
 }
 
-export async function login(email: string, password: string): Promise<AuthUser> {
-  const data = await apiFetch("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-  setTokens(data.accessToken, data.refreshToken);
-  return data.user;
+export interface SignupResult {
+  requiresVerification: true;
+  email: string;
 }
 
-export async function signup(email: string, username: string, password: string): Promise<AuthUser> {
-  const data = await apiFetch("/api/auth/signup", {
+export interface LoginResult {
+  requiresTOTP?: true;
+  email?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: AuthUser;
+}
+
+export async function signup(email: string, username: string, password: string): Promise<SignupResult> {
+  const res = await fetch(`${BASE}/api/auth/signup`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, username, password }),
   });
-  setTokens(data.accessToken, data.refreshToken);
-  return data.user;
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? "Signup failed");
+  return body;
+}
+
+export async function verifyEmail(email: string, code: string): Promise<AuthUser> {
+  const res = await fetch(`${BASE}/api/auth/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? "Verification failed");
+  setTokens(body.accessToken, body.refreshToken);
+  return body.user;
+}
+
+export async function resendVerification(email: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? "Failed to resend code");
+}
+
+export async function login(email: string, password: string, totpToken?: string): Promise<LoginResult> {
+  const res = await fetch(`${BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, totpToken }),
+  });
+  const body = await res.json();
+
+  if (res.status === 403 && body.requiresVerification) {
+    throw Object.assign(new Error(body.error ?? "Email not verified"), {
+      requiresVerification: true,
+      email: body.email,
+    });
+  }
+
+  if (!res.ok) throw new Error(body.error ?? "Login failed");
+
+  if (body.requiresTOTP) {
+    return { requiresTOTP: true, email: body.email };
+  }
+
+  setTokens(body.accessToken, body.refreshToken);
+  return { user: body.user };
 }
 
 export async function logout(): Promise<void> {
@@ -123,4 +177,22 @@ export async function logout(): Promise<void> {
     method: "POST",
     body: JSON.stringify({ refreshToken }),
   }).catch(() => {});
+}
+
+export async function setup2FA(): Promise<{ secret: string; qr: string; otpauthUrl: string }> {
+  return apiFetch("/api/auth/2fa/setup");
+}
+
+export async function enable2FA(token: string): Promise<void> {
+  await apiFetch("/api/auth/2fa/enable", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function disable2FA(password: string, token: string): Promise<void> {
+  await apiFetch("/api/auth/2fa/disable", {
+    method: "POST",
+    body: JSON.stringify({ password, token }),
+  });
 }
