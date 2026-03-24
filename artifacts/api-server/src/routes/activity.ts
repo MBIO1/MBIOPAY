@@ -5,7 +5,7 @@ import { desc, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-router.get("/api/activity", async (_req, res) => {
+router.get("/activity", async (_req, res) => {
   try {
     const rows = await db
       .select({
