@@ -31,12 +31,12 @@ const FEATURES = [
   {
     icon: Zap,
     title: "Fast Delivery",
-    desc: "Transfers are processed rapidly and your recipient gets paid in minutes — any time of day.",
+    desc: "Transfers are processed rapidly and your recipient gets paid in minutes, any time of day.",
   },
   {
     icon: Lock,
     title: "Locked Rates",
-    desc: "Rates are confirmed at the moment you initiate — no surprises between quoting and payment.",
+    desc: "Rates are confirmed at the moment you initiate. No surprises between quoting and payment.",
   },
   {
     icon: Shield,
@@ -51,7 +51,7 @@ const FEATURES = [
   {
     icon: CheckCircle2,
     title: "Name Verification",
-    desc: "We verify the recipient's registered name before you confirm — zero misdirected payments.",
+    desc: "We verify the recipient's registered name before you confirm. Zero misdirected payments.",
   },
   {
     icon: Star,
@@ -72,7 +72,7 @@ const TESTIMONIALS = [
     tag: "Business owner",
   },
   {
-    text: "The name verification before sending is a great feature — I know my money goes to the right person.",
+    text: "The name verification before sending is a great feature. I know my money goes to the right person.",
     name: "Peter O.",
     tag: "Freelancer",
   },
@@ -189,7 +189,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-muted-foreground text-lg leading-relaxed max-w-xl mx-auto mb-8">
-            Fast and reliable transfers delivered directly to MTN and Airtel mobile accounts — anytime, anywhere.
+            Fast and reliable transfers delivered directly to MTN and Airtel mobile accounts, anytime, anywhere.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-14">

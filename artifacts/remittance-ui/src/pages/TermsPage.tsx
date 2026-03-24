@@ -12,7 +12,7 @@ const SECTIONS = [
     icon: Shield,
     title: "User Responsibility",
     id: "responsibility",
-    content: "You are solely responsible for ensuring the accuracy of recipient phone numbers, networks, and wallet addresses before confirming any transaction. MBIO Pay will not be liable for losses arising from incorrect information provided by users. Double-check all details before confirming — transactions cannot be reversed once blockchain confirmation is received.",
+    content: "You are solely responsible for ensuring the accuracy of recipient phone numbers and network selection before confirming any transaction. MBIO Pay will not be liable for losses arising from incorrect information provided by users. Double-check all details before confirming. Transactions cannot be reversed once payment confirmation is received.",
   },
   {
     icon: RefreshCw,

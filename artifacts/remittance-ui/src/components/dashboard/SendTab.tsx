@@ -94,7 +94,7 @@ function QuoteLockBadge({ secsLeft }: { secsLeft: number }) {
         </svg>
       </div>
       {secsLeft === 0
-        ? "Rate expired — go back to refresh"
+        ? "Rate expired. Go back to refresh."
         : <><span className="font-mono">{mins}:{secs.toString().padStart(2, "0")}</span> &nbsp;Rate locked</>}
     </div>
   );
@@ -378,7 +378,7 @@ export function SendTab() {
                   {nameResolveFailed && !resolvingName && (
                     <div className="flex items-center gap-2 bg-orange-500/8 border border-orange-500/20 rounded-lg px-3 py-2">
                       <ShieldAlert className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                      <span className="text-xs text-orange-400">Could not verify name — double-check the number</span>
+                      <span className="text-xs text-orange-400">Could not verify name. Please double-check the number.</span>
                     </div>
                   )}
                 </div>
@@ -544,7 +544,7 @@ export function SendTab() {
                   {createOrder.isPending ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Creating Order...</>
                   ) : resolvedName ? (
-                    <><UserCheck className="mr-2 h-5 w-5" /> Confirm — Send to {resolvedName.split(" ")[0]}</>
+                    <><UserCheck className="mr-2 h-5 w-5" /> Confirm and Send to {resolvedName.split(" ")[0]}</>
                   ) : (
                     <>Confirm & Create Order <ArrowRight className="ml-2 h-5 w-5" /></>
                   )}
@@ -691,7 +691,7 @@ export function SendTab() {
                       </div>
                       <h3 className="text-xl font-display font-bold">Payment Received!</h3>
                       <p className="text-muted-foreground text-sm text-center">
-                        <span className="text-foreground font-semibold">{formatNumber(order.amount ?? 0, 4)} USDT</span> confirmed — sending UGX now
+                        <span className="text-foreground font-semibold">{formatNumber(order.amount ?? 0, 4)} USDT</span> confirmed. Sending UGX now.
                       </p>
                     </div>
                     {/* Pipeline: steps 1 & 2 done, step 3 active */}

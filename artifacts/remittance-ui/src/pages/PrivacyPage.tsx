@@ -32,7 +32,7 @@ const SECTIONS = [
     content: "We do not sell, rent, or trade your personal data to third parties.",
     bullets: [
       "Flutterwave receives recipient phone numbers and network codes solely for the purpose of processing mobile money payouts.",
-      "TronGrid / blockchain network nodes receive deposit wallet addresses for transaction monitoring — this data is public by nature of blockchain technology.",
+      "Transaction monitoring nodes receive deposit addresses for processing. This data is public by nature of the underlying network.",
       "Regulatory authorities may receive transaction data if required by applicable law.",
     ],
   },
@@ -41,7 +41,7 @@ const SECTIONS = [
     title: "Security Measures",
     id: "security",
     bullets: [
-      "Passwords are hashed using bcrypt with a high work factor — we never store plaintext passwords.",
+      "Passwords are hashed using bcrypt with a high work factor. We never store plaintext passwords.",
       "JWT tokens are short-lived (15 minutes) and rotate automatically via refresh tokens.",
       "Admin access requires both a password and a time-based one-time password (TOTP).",
       "All transactions are monitored in real-time by a multi-layer fraud detection system.",
@@ -60,9 +60,9 @@ const SECTIONS = [
     title: "Your Rights",
     id: "rights",
     bullets: [
-      "Right to access — you may request a copy of the personal data we hold about you.",
-      "Right to deletion — you may request deletion of your account and associated data. Transaction records may be retained for regulatory compliance.",
-      "Right to correction — you may request correction of inaccurate personal data.",
+      "Right to access: you may request a copy of the personal data we hold about you.",
+      "Right to deletion: you may request deletion of your account and associated data. Transaction records may be retained for regulatory compliance.",
+      "Right to correction: you may request correction of inaccurate personal data.",
       "To exercise any of these rights, contact our support team.",
     ],
   },
