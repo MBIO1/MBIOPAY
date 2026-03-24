@@ -157,10 +157,7 @@ export default function PrivacyPage() {
                   <s.icon className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-muted-foreground">§{i + 1}</span>
-                    <h2 className="text-sm font-bold text-foreground">{s.title}</h2>
-                  </div>
+                  <h2 className="text-sm font-bold text-foreground">{s.title}</h2>
                 </div>
               </div>
               <div className="px-5 py-4 space-y-3">
