@@ -7,10 +7,12 @@ import profileRouter from "./profile";
 import twofaRouter from "./twofa";
 import adminRouter from "./admin";
 import adminAuthRouter from "./adminAuth";
+import activityRouter from "./activity";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(activityRouter);
 router.use(walletRouter);
 router.use(authRouter);
 router.use(profileRouter);
