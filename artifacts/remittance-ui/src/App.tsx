@@ -1,9 +1,10 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import Home from "@/pages/Home";
 import AuthPage from "@/pages/AuthPage";
+import AdminPage from "@/pages/AdminPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -17,6 +18,11 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const [location] = useLocation();
+
+  if (location === "/admin" || location.startsWith("/admin/")) {
+    return <AdminPage />;
+  }
 
   if (loading) {
     return (
