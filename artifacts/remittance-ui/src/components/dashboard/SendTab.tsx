@@ -499,15 +499,15 @@ export function SendTab() {
                 {/* Summary breakdown */}
                 <div className="bg-secondary/30 rounded-xl border border-border/50 divide-y divide-border/50">
                   <div className="flex justify-between items-center px-4 py-3 text-sm">
-                    <span className="text-muted-foreground flex items-center gap-2"><Banknote className="w-4 h-4" /> You Send</span>
+                    <span className="text-muted-foreground flex items-center gap-2"><Banknote className="w-4 h-4" /> Amount</span>
                     <span className="font-medium">{formatNumber(quote?.usdtAmount ?? parsedAmount, 4)} USDT</span>
                   </div>
                   <div className="flex justify-between items-center px-4 py-3 text-sm">
-                    <span className="text-muted-foreground flex items-center gap-2"><Percent className="w-4 h-4" /> Fee (1%)</span>
+                    <span className="text-muted-foreground flex items-center gap-2"><Percent className="w-4 h-4" /> Service Fee</span>
                     <span className="font-medium text-muted-foreground">−{formatNumber(quote?.fee ?? 0, 4)} USDT</span>
                   </div>
                   <div className="flex justify-between items-center px-4 py-3 text-sm">
-                    <span className="text-muted-foreground">Exchange Rate</span>
+                    <span className="text-muted-foreground">Exchange Rate Applied</span>
                     <span className="font-medium">1 USDT = {(quote?.usdtRate ?? 3700).toLocaleString()} UGX</span>
                   </div>
                   <div className="flex justify-between items-center px-4 py-4">
@@ -635,9 +635,10 @@ export function SendTab() {
                       </div>
                     )}
 
-                    <p className="text-sm text-center text-muted-foreground">
-                      Send exactly <span className="text-foreground font-semibold">{formatNumber(parsedAmount, 4)} USDT (TRC-20)</span> to:
-                    </p>
+                    <div className="text-center space-y-1">
+                      <p className="text-sm font-semibold text-foreground">Complete Payment</p>
+                      <p className="text-xs text-muted-foreground">Use the secure reference below to complete your transfer:</p>
+                    </div>
 
                     <QRCodeDisplay value={address} size={200} />
 
@@ -645,8 +646,19 @@ export function SendTab() {
                       <code className="text-xs text-primary flex-1 truncate">{address}</code>
                       <Button variant="secondary" size="sm" onClick={() => handleCopy(address)} className="shrink-0">
                         {copied ? <CheckCircle2 className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                        {copied ? "Copied" : "Copy"}
+                        {copied ? "Copied" : "Copy Reference"}
                       </Button>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground text-center">
+                      Your payment will be confirmed automatically once received.
+                    </p>
+
+                    <div className="flex items-start gap-2 text-xs bg-secondary/40 border border-border/50 rounded-xl px-4 py-3 w-full">
+                      <AlertCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                      <p className="text-muted-foreground leading-relaxed">
+                        Digital transfers are processed through secure settlement systems. Ensure all recipient details are correct before confirming.
+                      </p>
                     </div>
 
                     {secondsLeft !== null && secondsLeft <= 5 * 60 && secondsLeft > 0 && (
@@ -717,8 +729,8 @@ export function SendTab() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-3xl font-display font-bold text-primary">Money Sent!</h3>
-                      <p className="text-muted-foreground text-sm mt-1">The UGX is on its way — arrives in ~2 minutes</p>
+                      <h3 className="text-3xl font-display font-bold text-primary">Transfer Successful</h3>
+                      <p className="text-muted-foreground text-sm mt-1">Funds delivered successfully to recipient mobile wallet.</p>
                     </div>
 
                     {/* UGX amount highlight */}
@@ -763,10 +775,10 @@ export function SendTab() {
                     <div className="bg-destructive/20 text-destructive p-5 rounded-full">
                       <AlertCircle className="h-12 w-12" />
                     </div>
-                    <h3 className="text-2xl font-display font-bold text-destructive">Payout Failed</h3>
+                    <h3 className="text-2xl font-display font-bold text-destructive">Payment Processing Failed</h3>
                     <p className="text-muted-foreground text-sm">
-                      We received your USDT but the mobile money transfer failed.
-                      <br />Contact support with Order #{activeOrderId}.
+                      Payment processing failed. Please try again.
+                      <br />If the issue persists, contact support with Order #{activeOrderId}.
                     </p>
                     <Button onClick={reset} variant="outline" className="w-full" size="lg">Start Over</Button>
                   </div>

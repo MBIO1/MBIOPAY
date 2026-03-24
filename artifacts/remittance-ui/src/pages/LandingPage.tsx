@@ -118,13 +118,12 @@ export default function LandingPage() {
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-foreground leading-[1.1] mb-5 max-w-3xl mx-auto">
-            Send crypto,{" "}
-            <span className="text-primary">they get cash</span>
-            <br className="hidden sm:block" /> in their pocket.
+            Send money,{" "}
+            <span className="text-primary">they receive instantly</span>
           </h1>
 
           <p className="text-muted-foreground text-lg leading-relaxed max-w-xl mx-auto mb-8">
-            Convert USDT (TRC-20) to UGX delivered directly to MTN or Airtel mobile wallets — in under 2 minutes, any time of day.
+            Fast and reliable transfers delivered directly to MTN and Airtel mobile wallets — anytime, anywhere.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-14">
