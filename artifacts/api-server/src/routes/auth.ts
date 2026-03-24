@@ -1,6 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { randomUUID, createHash, randomInt } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { z } from "zod";
 import { db } from "@workspace/db";
 import { usersTable, refreshTokensTable } from "@workspace/db/schema";
@@ -8,14 +8,14 @@ import { eq, and, gt, lt } from "drizzle-orm";
 import { signAccess, signRefresh, verifyRefresh } from "../lib/jwt";
 import { requireAuth } from "../lib/auth-middleware";
 import { isDisposableEmail } from "../lib/disposableEmails";
-import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/emailService";
+import { sendPasswordResetEmail } from "../lib/emailService";
+import { sendOTP, verifyOTP, isIPBlocked } from "../lib/otpService";
 import speakeasy from "speakeasy";
 
 const router = Router();
 
 const MAX_FAILED_ATTEMPTS = 10;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
-const VERIFY_CODE_TTL_MS = 15 * 60 * 1000;
 
 const SignupSchema = z.object({
   email: z.string().email("Valid email required"),
@@ -46,8 +46,10 @@ function hashToken(token: string): string {
     .digest("hex");
 }
 
-function generateVerifyCode(): string {
-  return String(randomInt(100000, 999999));
+function getClientIP(req: import("express").Request): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return (Array.isArray(forwarded) ? forwarded[0] : forwarded).split(",")[0].trim();
+  return req.socket?.remoteAddress ?? "unknown";
 }
 
 function userPayload(user: typeof usersTable.$inferSelect) {
@@ -106,12 +108,7 @@ router.post("/auth/signup", async (req, res) => {
 
   if (existing.length > 0) {
     if (!existing[0].emailVerified) {
-      const code = generateVerifyCode();
-      const expires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
-      await db.update(usersTable)
-        .set({ emailVerifyCode: code, emailVerifyExpires: expires, updatedAt: new Date() })
-        .where(eq(usersTable.id, existing[0].id));
-      await sendVerificationEmail(emailLower, code).catch(() => {});
+      await sendOTP(emailLower, getClientIP(req)).catch(() => {});
       res.status(200).json({ requiresVerification: true, email: emailLower, message: "A new verification code has been sent to your email." });
       return;
     }
@@ -132,8 +129,6 @@ router.post("/auth/signup", async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
   const uid = randomUUID().slice(0, 8).toUpperCase();
-  const verifyCode = generateVerifyCode();
-  const verifyExpires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
 
   await db.insert(usersTable).values({
     email: emailLower,
@@ -141,11 +136,9 @@ router.post("/auth/signup", async (req, res) => {
     passwordHash,
     uid,
     emailVerified: false,
-    emailVerifyCode: verifyCode,
-    emailVerifyExpires: verifyExpires,
   });
 
-  await sendVerificationEmail(emailLower, verifyCode).catch(() => {});
+  await sendOTP(emailLower, getClientIP(req)).catch(() => {});
 
   res.status(201).json({ requiresVerification: true, email: emailLower });
 });
@@ -175,23 +168,15 @@ router.post("/auth/verify-email", async (req, res) => {
     return;
   }
 
-  if (!user.emailVerifyCode || !user.emailVerifyExpires) {
-    res.status(400).json({ error: "No verification code found. Please request a new one." });
-    return;
-  }
-
-  if (user.emailVerifyExpires < new Date()) {
-    res.status(400).json({ error: "Verification code has expired. Please request a new one." });
-    return;
-  }
-
-  if (user.emailVerifyCode !== code.trim()) {
-    res.status(422).json({ error: "Invalid verification code. Please check and try again." });
+  try {
+    await verifyOTP(user.email, code, getClientIP(req));
+  } catch (err: any) {
+    res.status(err.status ?? 422).json({ error: err.message ?? "Invalid verification code." });
     return;
   }
 
   await db.update(usersTable)
-    .set({ emailVerified: true, emailVerifyCode: null, emailVerifyExpires: null, updatedAt: new Date() })
+    .set({ emailVerified: true, updatedAt: new Date() })
     .where(eq(usersTable.id, user.id));
 
   const accessToken = signAccess({ id: user.id });
@@ -230,24 +215,12 @@ router.post("/auth/resend-verification", async (req, res) => {
     return;
   }
 
-  const cooldownExpiry = user.emailVerifyExpires;
-  const cooldownRemaining = cooldownExpiry
-    ? cooldownExpiry.getTime() - Date.now() - (VERIFY_CODE_TTL_MS - 60_000)
-    : 0;
-
-  if (cooldownRemaining > 0) {
-    res.status(429).json({ error: "Please wait before requesting another code." });
+  try {
+    await sendOTP(user.email, getClientIP(req));
+  } catch (err: any) {
+    res.status(err.status ?? 429).json({ error: err.message ?? "Failed to send code." });
     return;
   }
-
-  const code = generateVerifyCode();
-  const expires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
-
-  await db.update(usersTable)
-    .set({ emailVerifyCode: code, emailVerifyExpires: expires, updatedAt: new Date() })
-    .where(eq(usersTable.id, user.id));
-
-  await sendVerificationEmail(email.toLowerCase().trim(), code).catch(() => {});
 
   res.json({ ok: true });
 });
