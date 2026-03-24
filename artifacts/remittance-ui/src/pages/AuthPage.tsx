@@ -148,7 +148,7 @@ export default function AuthPage() {
         </p>
       </div>
 
-      <p className="text-muted-foreground text-xs mt-6">USDT (TRC-20) → UGX mobile money</p>
+      <p className="text-muted-foreground text-xs mt-6">Digital → UGX mobile money</p>
       <div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground/60">
         <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
         <span>·</span>
