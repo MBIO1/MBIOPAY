@@ -59,7 +59,7 @@ export interface IReferral extends Document {
 }
 
 const referralSchema = new Schema<IReferral>({
-  refId:       { type: String, required: true, unique: true },
+  refId:       { type: String, required: true },
   clicks:      { type: Number, default: 0 },
   conversions: { type: Number, default: 0 },
   createdAt:   { type: Date,   default: Date.now },
