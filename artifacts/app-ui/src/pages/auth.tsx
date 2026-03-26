@@ -4,10 +4,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, Mail, Lock, User, ArrowRight, ShieldCheck, Phone } from "lucide-react";
+import { Activity, Mail, Lock, User, ArrowRight, ShieldCheck } from "lucide-react";
 import { useLogin, useSignup, useVerify, useGoogleSignIn, useAddPhone, loginSchema, signupSchema, verifySchema } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/phone-input";
 import { useToast } from "@/hooks/use-toast";
 
 declare global {
@@ -32,7 +33,7 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [mode, setMode] = useState<AuthMode>("login");
   const [emailForVerification, setEmailForVerification] = useState("");
-  const [phone, setPhone] = useState("");
+  const [e164Phone, setE164Phone] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   const loginMutation = useLogin();
@@ -135,14 +136,13 @@ export default function AuthPage() {
 
   const onAddPhone = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = phone.trim();
-    if (!trimmed || trimmed.length < 7) {
-      toast({ variant: "destructive", title: "Invalid phone", description: "Enter a valid phone number (e.g. +256700123456)" });
+    if (!e164Phone) {
+      toast({ variant: "destructive", title: "Invalid phone number", description: "Please enter a valid phone number including the country code." });
       return;
     }
     try {
-      await addPhone.mutateAsync(trimmed);
-      toast({ title: "Phone saved!", description: `${trimmed} has been linked to your account.` });
+      await addPhone.mutateAsync(e164Phone);
+      toast({ title: "Phone saved!", description: `${e164Phone} has been linked to your account.` });
       setLocation("/");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Failed to save phone", description: error.message });
@@ -353,16 +353,18 @@ export default function AuthPage() {
                 </p>
 
                 <form onSubmit={onAddPhone} className="space-y-4">
-                  <Input
-                    type="tel"
-                    placeholder="+256700000000"
-                    icon={<Phone className="w-5 h-5" />}
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="text-center font-mono tracking-wide h-14 text-lg"
-                  />
+                  <PhoneInput onChange={setE164Phone} />
+                  {e164Phone && (
+                    <p className="text-xs text-primary/80 text-center font-mono">{e164Phone}</p>
+                  )}
 
-                  <Button type="submit" className="w-full mt-4" size="lg" isLoading={addPhone.isPending}>
+                  <Button
+                    type="submit"
+                    className="w-full mt-4"
+                    size="lg"
+                    isLoading={addPhone.isPending}
+                    disabled={!e164Phone}
+                  >
                     Save & Continue <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </form>

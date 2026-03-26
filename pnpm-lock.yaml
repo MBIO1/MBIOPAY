@@ -406,6 +406,9 @@ importers:
 
   artifacts/app-ui:
     dependencies:
+      intl-tel-input:
+        specifier: ^26.8.1
+        version: 26.8.1
       qrcode.react:
         specifier: ^4.2.0
         version: 4.2.0(react@19.1.0)
@@ -3628,6 +3631,9 @@ packages:
   internmap@2.0.3:
     resolution: {integrity: sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg==}
     engines: {node: '>=12'}
+
+  intl-tel-input@26.8.1:
+    resolution: {integrity: sha512-6UBRifs+nGtlS03SZGxxb9uVX7MTo1ePNJ4zIxO+qiwVwJ6fW7gYTcvYVFKjBn7jlbPw2ZqjGeNLaSUEwmDvIA==}
 
   ip-address@10.1.0:
     resolution: {integrity: sha512-XXADHxXmvT9+CRxhXg56LJovE+bmWnEWB78LB83VZTprKTmaC5QfruXocxzTZ2Kl0DNwKuBdlIhjL8LeY8Sf8Q==}
@@ -7327,6 +7333,8 @@ snapshots:
       react-dom: 19.1.0(react@19.1.0)
 
   internmap@2.0.3: {}
+
+  intl-tel-input@26.8.1: {}
 
   ip-address@10.1.0: {}
 
