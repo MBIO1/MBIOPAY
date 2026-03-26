@@ -78,6 +78,13 @@ function buildAllowedOrigins(): Set<string> {
     origins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
   }
 
+  // Production custom domains
+  origins.add("https://mbiopay.com");
+  origins.add("https://www.mbiopay.com");
+  origins.add("https://app.mbiopay.com");
+  origins.add("https://admin.mbiopay.com");
+  origins.add("https://api.mbiopay.com");
+
   if (process.env.NODE_ENV !== "production") {
     origins.add("http://localhost:3000");
     origins.add("http://localhost:5173");
