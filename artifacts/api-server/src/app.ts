@@ -34,21 +34,38 @@ app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        frameSrc: ["'none'"],
+        defaultSrc:  ["'self'"],
+        scriptSrc:   ["'self'"],
+        styleSrc:    ["'self'", "'unsafe-inline'"],
+        imgSrc:      ["'self'", "data:"],
+        connectSrc:  ["'self'"],
+        fontSrc:     ["'self'"],
+        objectSrc:   ["'none'"],
+        frameSrc:    ["'self'"],
         upgradeInsecureRequests: [],
       },
     },
-    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    frameguard:     { action: "sameorigin" },
+    hsts:           { maxAge: 31536000, includeSubDomains: true, preload: true },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   }),
 );
+
+app.use((_req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy",   "same-origin");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  next();
+});
+
+app.get("/.well-known/security.txt", (_req, res) => {
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.send(
+    "Contact: mailto:support@mbiopay.com\n" +
+    "Expires: 2027-01-01T00:00:00.000Z\n" +
+    "Preferred-Languages: en\n",
+  );
+});
 
 function buildAllowedOrigins(): Set<string> {
   const origins = new Set<string>();
