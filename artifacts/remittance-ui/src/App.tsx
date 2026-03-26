@@ -11,6 +11,7 @@ import PrivacyPage from "@/pages/PrivacyPage";
 import HowItWorksPage from "@/pages/HowItWorksPage";
 import FeesPage from "@/pages/FeesPage";
 import SupportPage from "@/pages/SupportPage";
+import RankingPage, { RANKING_SLUGS } from "@/pages/RankingPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -33,6 +34,7 @@ function AppContent() {
   if (location === "/how-it-works") return <HowItWorksPage />;
   if (location === "/fees") return <FeesPage />;
   if (location === "/support") return <SupportPage />;
+  if (RANKING_SLUGS.includes(location.replace(/^\//, ""))) return <RankingPage />;
 
   if (loading) {
     return (
