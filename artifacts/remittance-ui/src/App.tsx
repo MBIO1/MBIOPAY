@@ -8,6 +8,9 @@ import AuthPage from "@/pages/AuthPage";
 import AdminPage from "@/pages/AdminPage";
 import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
+import HowItWorksPage from "@/pages/HowItWorksPage";
+import FeesPage from "@/pages/FeesPage";
+import SupportPage from "@/pages/SupportPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -27,6 +30,9 @@ function AppContent() {
   if (location === "/admin" || location.startsWith("/admin/")) return <AdminPage />;
   if (location === "/terms") return <TermsPage />;
   if (location === "/privacy") return <PrivacyPage />;
+  if (location === "/how-it-works") return <HowItWorksPage />;
+  if (location === "/fees") return <FeesPage />;
+  if (location === "/support") return <SupportPage />;
 
   if (loading) {
     return (

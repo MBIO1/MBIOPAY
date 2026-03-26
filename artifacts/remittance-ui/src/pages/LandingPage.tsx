@@ -1,9 +1,10 @@
 import { Link } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   ArrowRight, Zap, Shield, Smartphone, CheckCircle2,
   Globe, Lock, Star, TrendingUp, Activity, Phone,
-  Mail, Building2, ShieldCheck, Clock, Users,
+  Mail, Building2, ShieldCheck, Clock, Users, Share2, Copy, Check,
+  BookOpen, DollarSign, MessageCircle,
 } from "lucide-react";
 
 const STEPS = [
@@ -92,9 +93,138 @@ interface ActivityItem {
   time: string;
 }
 
+const TIME_LABELS = ["just now", "1 min ago", "2 min ago", "3 min ago", "5 min ago", "8 min ago", "12 min ago", "15 min ago", "20 min ago", "25 min ago"];
+
+function LeadCapture() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  const submit = async () => {
+    if (!email || status === "loading" || status === "done") return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setStatus("done");
+        setEmail("");
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="bg-card border border-border/50 rounded-2xl p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Mail className="w-4 h-4 text-primary" />
+        <h3 className="text-sm font-bold text-foreground">Get Early Access</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">Be the first to know about new features and rate improvements.</p>
+      {status === "done" ? (
+        <div className="flex items-center gap-2 text-primary text-sm font-medium">
+          <Check className="w-4 h-4" /> You're on the list!
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="Enter your email"
+            className="flex-1 min-w-0 bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/60"
+          />
+          <button
+            onClick={submit}
+            disabled={status === "loading"}
+            className="bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors text-sm shrink-0 disabled:opacity-60"
+          >
+            {status === "loading" ? "..." : "Join"}
+          </button>
+        </div>
+      )}
+      {status === "error" && <p className="text-xs text-destructive mt-2">Please enter a valid email address.</p>}
+    </div>
+  );
+}
+
+function ShareHooks() {
+  const [copied, setCopied] = useState(false);
+  const url = "https://mbiopay.com";
+  const text = "Send money to Uganda in minutes with MBIO PAY — direct to MTN & Airtel mobile money. Fast, locked rates, no hidden fees.";
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const nativeShare = async () => {
+    if (navigator.share) {
+      await navigator.share({ title: "MBIO PAY", text, url }).catch(() => {});
+    } else {
+      copyLink();
+    }
+  };
+
+  const whatsapp = `https://wa.me/?text=${encodeURIComponent(text + " " + url)}`;
+  const twitter = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+
+  return (
+    <div className="bg-card border border-border/50 rounded-2xl p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Share2 className="w-4 h-4 text-primary" />
+        <h3 className="text-sm font-bold text-foreground">Share MBIO PAY</h3>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">Know someone who sends money to Uganda? Share this with them.</p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={nativeShare}
+          className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-primary/20 transition-colors"
+        >
+          <Share2 className="w-3.5 h-3.5" /> Share
+        </button>
+        <a
+          href={whatsapp}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/20 text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-green-500/20 transition-colors"
+        >
+          WhatsApp
+        </a>
+        <a
+          href={twitter}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-sky-500/20 transition-colors"
+        >
+          X / Twitter
+        </a>
+        <button
+          onClick={copyLink}
+          className="flex items-center gap-1.5 bg-secondary/50 text-foreground border border-border/50 text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-secondary transition-colors"
+        >
+          {copied ? <><Check className="w-3.5 h-3.5 text-primary" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy Link</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LiveActivityFeed() {
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const tickRef = useRef(0);
 
   const load = async () => {
     try {
@@ -112,7 +242,7 @@ function LiveActivityFeed() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 10000);
+    const t = setInterval(() => { tickRef.current++; load(); }, 10000);
     return () => clearInterval(t);
   }, []);
 
@@ -134,7 +264,7 @@ function LiveActivityFeed() {
             <span className="text-muted-foreground font-mono">{item.user}</span>
             <span className="text-foreground font-medium">sent {item.amount} USD</span>
             <span className={`font-bold text-[11px] ${item.network === "MTN" ? "text-yellow-400" : "text-red-400"}`}>{item.network}</span>
-            <span className="text-muted-foreground/60">{item.time}</span>
+            <span className="text-muted-foreground/60">{TIME_LABELS[i % TIME_LABELS.length]}</span>
           </div>
         ))}
       </div>
@@ -379,6 +509,53 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Lead Capture + Share Hooks ──────────────────────────────────────── */}
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <LeadCapture />
+          <ShareHooks />
+        </div>
+      </section>
+
+      {/* ─── Internal Links ──────────────────────────────────────────────────── */}
+      <section className="bg-secondary/10 border-y border-border/30 py-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-6 text-center">Learn More</p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <Link href="/how-it-works">
+              <div className="bg-card border border-border/50 rounded-2xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all group cursor-pointer">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground mb-1">How It Works</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">Step-by-step guide to sending money with MBIO PAY.</p>
+                <span className="inline-flex items-center gap-1 text-xs text-primary font-semibold mt-3">Read more <ArrowRight className="w-3 h-3" /></span>
+              </div>
+            </Link>
+            <Link href="/fees">
+              <div className="bg-card border border-border/50 rounded-2xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all group cursor-pointer">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <DollarSign className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground mb-1">Fees &amp; Pricing</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">Flat fees, no surprises. See exactly what you pay before you send.</p>
+                <span className="inline-flex items-center gap-1 text-xs text-primary font-semibold mt-3">View fees <ArrowRight className="w-3 h-3" /></span>
+              </div>
+            </Link>
+            <Link href="/support">
+              <div className="bg-card border border-border/50 rounded-2xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all group cursor-pointer">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <MessageCircle className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground mb-1">Support</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">Questions? Our team is ready to help via email or phone.</p>
+                <span className="inline-flex items-center gap-1 text-xs text-primary font-semibold mt-3">Get help <ArrowRight className="w-3 h-3" /></span>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ─── CTA Banner ──────────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
         <div className="relative bg-primary/10 border border-primary/20 rounded-3xl p-10 sm:p-14 text-center overflow-hidden">
@@ -418,8 +595,11 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground">
-              <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
-              <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+              <Link href="/how-it-works" className="hover:text-primary transition-colors">How It Works</Link>
+              <Link href="/fees" className="hover:text-primary transition-colors">Fees</Link>
+              <Link href="/support" className="hover:text-primary transition-colors">Support</Link>
+              <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+              <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
               <a href="tel:+12135105113" className="hover:text-primary transition-colors">+1 213-510-5113</a>
               <a href="mailto:support@mbiopay.com" className="hover:text-primary transition-colors">support@mbiopay.com</a>
             </div>
