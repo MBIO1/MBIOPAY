@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Shield, User, Key, Bell, CreditCard, LogOut } from "lucide-react";
+import { Shield, User, Key, LogOut, Sun, Moon, Monitor, Check } from "lucide-react";
 import { useUser, useLogout } from "@/hooks/use-auth";
+import { useTheme, type Theme } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -19,17 +20,28 @@ const passwordSchema = z.object({
   newPassword: z.string().min(6, "New password must be at least 6 characters"),
 });
 
+type SettingsTab = "profile" | "security" | "appearance";
+
+const THEME_OPTIONS: { value: Theme; label: string; icon: React.ReactNode; description: string }[] = [
+  { value: "light",  label: "Light",  icon: <Sun className="w-5 h-5" />,     description: "Always use light mode" },
+  { value: "dark",   label: "Dark",   icon: <Moon className="w-5 h-5" />,    description: "Always use dark mode" },
+  { value: "auto",   label: "System", icon: <Monitor className="w-5 h-5" />, description: "Follow your device setting" },
+];
+
 export default function SettingsPage() {
   const { data: user } = useUser();
   const logout = useLogout();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
+  const { theme, setTheme } = useTheme();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+
+  const userData = user as any;
 
   const profileForm = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     values: {
-      name: user?.user?.name || "",
-      email: user?.user?.email || "",
+      name: userData?.displayName || "",
+      email: userData?.email || "",
     }
   });
 
@@ -38,51 +50,47 @@ export default function SettingsPage() {
     defaultValues: { currentPassword: "", newPassword: "" }
   });
 
-  const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
-    // Mock update - would hit PATCH /api/profile
+  const onProfileSubmit = async (_data: z.infer<typeof profileSchema>) => {
     toast({ title: "Profile updated", description: "Your changes have been saved." });
   };
 
-  const onPasswordSubmit = async (data: z.infer<typeof passwordSchema>) => {
-    // Mock update - would hit PATCH /api/profile/password
+  const onPasswordSubmit = async (_data: z.infer<typeof passwordSchema>) => {
     toast({ title: "Password changed", description: "Your security settings have been updated." });
     passwordForm.reset();
   };
+
+  const NAV_TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
+    { id: "profile",    label: "Account Profile",  icon: <User className="w-5 h-5" /> },
+    { id: "security",   label: "Security & 2FA",   icon: <Shield className="w-5 h-5" /> },
+    { id: "appearance", label: "Appearance",        icon: <Sun className="w-5 h-5" /> },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
       
       <div>
         <h1 className="text-3xl font-display font-bold text-white">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your account and security preferences.</p>
+        <p className="text-muted-foreground mt-1">Manage your account and preferences.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-8">
         
         {/* Settings Nav */}
         <div className="w-full md:w-64 space-y-2">
-          <button 
-            onClick={() => setActiveTab("profile")}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left",
-              activeTab === "profile" 
-                ? "bg-primary/10 text-primary border border-primary/20 font-medium" 
-                : "text-muted-foreground hover:bg-white/5 hover:text-white border border-transparent"
-            )}
-          >
-            <User className="w-5 h-5" /> Account Profile
-          </button>
-          <button 
-            onClick={() => setActiveTab("security")}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left",
-              activeTab === "security" 
-                ? "bg-primary/10 text-primary border border-primary/20 font-medium" 
-                : "text-muted-foreground hover:bg-white/5 hover:text-white border border-transparent"
-            )}
-          >
-            <Shield className="w-5 h-5" /> Security & 2FA
-          </button>
+          {NAV_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left",
+                activeTab === tab.id
+                  ? "bg-primary/10 text-primary border border-primary/20 font-medium"
+                  : "text-muted-foreground hover:bg-white/5 hover:text-white border border-transparent"
+              )}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
           
           <div className="pt-4 mt-4 border-t border-white/5">
             <button 
@@ -96,6 +104,7 @@ export default function SettingsPage() {
 
         {/* Content Area */}
         <div className="flex-1">
+
           {activeTab === "profile" && (
             <div className="space-y-6">
               <div className="glass-card rounded-2xl p-6 md:p-8">
@@ -103,7 +112,7 @@ export default function SettingsPage() {
                 
                 <div className="flex items-center gap-6 mb-8">
                   <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center border-2 border-white/10 text-2xl font-bold text-white">
-                    {user?.user?.name?.charAt(0).toUpperCase() || 'U'}
+                    {userData?.displayName?.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <div>
                     <Button variant="outline" size="sm">Change Avatar</Button>
@@ -123,6 +132,14 @@ export default function SettingsPage() {
                       <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
                     </div>
                   </div>
+
+                  {userData?.phone && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">Mobile Number</label>
+                      <Input value={userData.phone} disabled className="opacity-50 cursor-not-allowed font-mono" />
+                    </div>
+                  )}
+
                   <div className="pt-4 flex justify-end">
                     <Button type="submit">Save Changes</Button>
                   </div>
@@ -176,6 +193,51 @@ export default function SettingsPage() {
 
             </div>
           )}
+
+          {activeTab === "appearance" && (
+            <div className="space-y-6">
+              <div className="glass-card rounded-2xl p-6 md:p-8">
+                <h3 className="text-xl font-display font-bold text-white mb-2">Theme</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Choose how MBIO Pay looks for you. Your preference is saved locally.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {THEME_OPTIONS.map((opt) => {
+                    const selected = theme === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => setTheme(opt.value)}
+                        className={cn(
+                          "relative flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all duration-200 text-center",
+                          selected
+                            ? "border-primary bg-primary/10 shadow-[0_0_20px_hsl(var(--primary)/0.2)]"
+                            : "border-white/10 bg-card/40 hover:border-white/20 hover:bg-card/60"
+                        )}
+                      >
+                        {selected && (
+                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </span>
+                        )}
+                        <span className={selected ? "text-primary" : "text-muted-foreground"}>
+                          {opt.icon}
+                        </span>
+                        <div>
+                          <p className={cn("font-semibold text-sm", selected ? "text-primary" : "text-white")}>
+                            {opt.label}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>

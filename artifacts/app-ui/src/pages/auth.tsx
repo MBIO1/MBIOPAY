@@ -31,7 +31,12 @@ type AuthMode = "login" | "signup" | "verify" | "phone";
 export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [mode, setMode] = useState<AuthMode>("login");
+  // Detect ?step=phone from the URL (set by ProtectedRoute when hasPhone is false)
+  const initialMode: AuthMode = (() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("step") === "phone" ? "phone" : "login";
+  })();
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [emailForVerification, setEmailForVerification] = useState("");
   const [e164Phone, setE164Phone] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);

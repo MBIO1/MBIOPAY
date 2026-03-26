@@ -45,7 +45,11 @@ router.get("/profile", requireAuth, async (req, res) => {
     username: user.username,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
+    phone: user.phone ?? null,
+    hasPhone: !!user.phone,
     usernameSet: user.usernameSet,
+    emailVerified: user.emailVerified,
+    totpEnabled: user.totpEnabled,
     createdAt: user.createdAt,
   });
 });

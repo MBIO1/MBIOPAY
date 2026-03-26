@@ -4,13 +4,19 @@ import { useUser } from "@/hooks/use-auth";
 import { Activity } from "lucide-react";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { data: user, isLoading } = useUser();
 
   useEffect(() => {
+    if (isLoading) return;
     const token = localStorage.getItem('token');
-    if (!isLoading && (!token || !user)) {
+    if (!token || !user) {
       setLocation('/auth');
+      return;
+    }
+    // Hard-enforce phone collection before accessing the app
+    if (!(user as any).hasPhone) {
+      setLocation('/auth?step=phone');
     }
   }, [user, isLoading, setLocation]);
 
