@@ -36,13 +36,13 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc:  ["'self'"],
-        scriptSrc:   ["'self'"],
+        scriptSrc:   ["'self'", "https://accounts.google.com"],
         styleSrc:    ["'self'", "'unsafe-inline'"],
-        imgSrc:      ["'self'", "data:"],
-        connectSrc:  ["'self'"],
+        imgSrc:      ["'self'", "data:", "https:"],
+        connectSrc:  ["'self'", "https://api.mbiopay.com"],
         fontSrc:     ["'self'"],
         objectSrc:   ["'none'"],
-        frameSrc:    ["'self'"],
+        frameSrc:    ["https://accounts.google.com"],
         upgradeInsecureRequests: [],
       },
     },
@@ -53,9 +53,13 @@ app.use(
 );
 
 app.use((_req, res, next) => {
-  res.setHeader("Cross-Origin-Opener-Policy",   "same-origin");
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  // Allow Google Sign-In popup to communicate back — "same-origin" blocks it
+  res.setHeader("Cross-Origin-Opener-Policy",   "same-origin-allow-popups");
   res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  // Explicit nosniff (belt-and-suspenders on top of helmet)
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  // Disable sensors not needed by this app
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   next();
 });
 
