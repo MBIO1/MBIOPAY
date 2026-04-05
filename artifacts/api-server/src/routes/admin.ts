@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
   usersTable,
@@ -11,7 +11,7 @@ import { getFlutterwaveUgxBalance } from "../lib/walletWatcher";
 import { getHotWalletStats } from "../lib/dynamicRate";
 import { requireAdmin } from "./adminAuth";
 
-const router = Router();
+const router: IRouter = Router();
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 router.get("/admin/overview", requireAdmin, async (_req, res) => {

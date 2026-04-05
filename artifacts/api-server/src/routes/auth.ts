@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID, createHash } from "crypto";
 import { z } from "zod";
@@ -12,7 +12,7 @@ import { sendPasswordResetEmail } from "../lib/emailService";
 import { sendOTP, verifyOTP, isIPBlocked } from "../lib/otpService";
 import speakeasy from "speakeasy";
 
-const router = Router();
+const router: IRouter = Router();
 
 const MAX_FAILED_ATTEMPTS = 10;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;

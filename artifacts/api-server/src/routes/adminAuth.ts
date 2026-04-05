@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
@@ -7,7 +7,7 @@ import { db } from "@workspace/db";
 import { adminsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 
-const router = Router();
+const router: IRouter = Router();
 
 declare module "express-session" {
   interface SessionData {

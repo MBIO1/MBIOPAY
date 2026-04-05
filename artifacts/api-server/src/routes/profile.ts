@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
@@ -6,7 +6,7 @@ import { usersTable, refreshTokensTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/auth-middleware";
 
-const router = Router();
+const router: IRouter = Router();
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 

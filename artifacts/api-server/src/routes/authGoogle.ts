@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import { OAuth2Client } from "google-auth-library";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
@@ -9,7 +9,7 @@ import { signAccess, signRefresh } from "../lib/jwt";
 import { createHash } from "crypto";
 import { logger } from "../lib/logger";
 
-const router = Router();
+const router: IRouter = Router();
 
 const GOOGLE_CLIENT_ID =
   process.env["GOOGLE_CLIENT_ID"] ??

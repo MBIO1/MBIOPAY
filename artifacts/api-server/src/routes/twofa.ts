@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type IRouter } from "express";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/auth-middleware";
 import { sendTwoFADisabledEmail } from "../lib/emailService";
 
-const router = Router();
+const router: IRouter = Router();
 
 // ─── GET /api/auth/2fa/setup ──────────────────────────────────────────────────
 // Generate a TOTP secret + QR code for the authenticated user
