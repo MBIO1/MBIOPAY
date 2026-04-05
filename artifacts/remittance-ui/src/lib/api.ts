@@ -96,7 +96,7 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
-export async function apiFetch(path: string, opts: RequestInit = {}) {
+export async function apiFetch<T = unknown>(path: string, opts: RequestInit = {}): Promise<T> {
   let token = getAccessToken();
 
   const doFetch = (t: string | null) =>
@@ -127,7 +127,7 @@ export async function apiFetch(path: string, opts: RequestInit = {}) {
     });
   }
 
-  return body;
+  return body as T;
 }
 
 export interface AuthUser {
@@ -145,7 +145,7 @@ export interface AuthUser {
 
 export async function getMe(): Promise<AuthUser | null> {
   try {
-    return await apiFetch("/api/auth/me");
+    return await apiFetch<AuthUser>("/api/auth/me");
   } catch {
     return null;
   }
@@ -266,7 +266,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function setup2FA(): Promise<{ secret: string; qr: string; otpauthUrl: string }> {
-  return apiFetch("/api/auth/2fa/setup");
+  return apiFetch<{ secret: string; qr: string; otpauthUrl: string }>("/api/auth/2fa/setup");
 }
 
 export async function enable2FA(token: string): Promise<void> {

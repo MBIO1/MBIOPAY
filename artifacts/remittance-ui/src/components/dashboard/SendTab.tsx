@@ -15,6 +15,15 @@ import { apiFetch } from "@/lib/api";
 
 type Network = "MTN" | "Airtel";
 type Step = 1 | 2 | 3;
+type ResolveAccountResponse = {
+  accountName: string | null;
+  verified: boolean;
+  testMode?: boolean;
+};
+type ServiceStatusResponse = {
+  available?: boolean;
+  reason?: string;
+};
 
 const MIN_USDT = 1;
 
@@ -139,7 +148,7 @@ export function SendTab() {
     const t = setTimeout(async () => {
       setResolvingName(true);
       try {
-        const data = await apiFetch(
+        const data = await apiFetch<ResolveAccountResponse>(
           `/api/resolve-account?phone=${encodeURIComponent(phone)}&network=${encodeURIComponent(network)}`
         );
         if (data.verified && data.accountName) {
@@ -170,7 +179,7 @@ export function SendTab() {
 
   const checkServiceStatus = async () => {
     try {
-      const data = await apiFetch("/api/service-status");
+      const data = await apiFetch<ServiceStatusResponse>("/api/service-status");
       setServiceAvailable(data.available);
       setServiceReason(data.reason ?? "");
     } catch {
