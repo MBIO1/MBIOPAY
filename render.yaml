@@ -5,7 +5,7 @@ services:
     plan: free
     branch: main
     healthCheckPath: /api/healthz
-    buildCommand: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/remittance-ui build && pnpm --dir artifacts/api-server build
+    buildCommand: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build
     startCommand: pnpm --dir artifacts/api-server start
     envVars:
       - key: NODE_ENV

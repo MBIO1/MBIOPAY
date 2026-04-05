@@ -72,6 +72,11 @@ Created `render.yaml` with:
 - Plan: Free (or suitable tier)
 - Health Check Path: `/api/healthz`
 
+The backend web service is also the primary public site:
+- `/` serves the remittance frontend
+- `/api/*` serves the API
+- The `artifacts/api-server` build now builds the remittance frontend automatically before bundling the server
+
 Render will use `render.yaml` for automatic service detection.
 
 ### 3. For Frontends (Static Sites)
@@ -88,6 +93,10 @@ Set in Render environment settings:
 - `DATABASE_URL` for Postgres-backed routes
 - `MONGODB_URI` if Mongo-backed tracking should be enabled
 - `ADMIN_SECRET` or `SESSION_SECRET`
+- `HOT_WALLET` or `WALLET_ADDRESS` for a non-empty wallet address response
+- `HOT_PRIVATE_KEY` if automated hot-wallet operations are enabled
+- `FLW_SECRET_KEY` for Flutterwave rate/balance/payout flows
+- `TRON_API` if using a TronGrid API key
 - `CORS_ALLOWED_ORIGINS` for any extra frontend domains
 - API keys and secrets
 
@@ -121,6 +130,7 @@ pnpm start
 - `corepack` now bootstraps the pinned pnpm version before install
 - Render installs with `--no-frozen-lockfile` to avoid stale-lockfile deploy failures
 - Static sites publish from `dist/public`, not the parent `dist` folder
+- The API web service is the easiest production entrypoint because it serves both the remittance SPA and `/api`
 - The API now degrades more safely when optional infrastructure env vars are missing
 - All Replit-specific references have been removed for cross-platform compatibility
 - Frontends deploy as static sites; backend as Node.js web service

@@ -29,6 +29,11 @@ Health Check: /api/healthz
 Port: 3000 (set via PORT env var)
 ```
 
+This web service is the primary public app.
+- `/` serves the remittance frontend
+- `/api/*` serves the backend API
+- If the homepage shows `Cannot GET /`, the service is not using the latest build or has not redeployed the latest `main`
+
 ### 2. App UI (Static Site)
 ```yaml
 Service: mbiopay-app-ui
@@ -67,6 +72,10 @@ Publish: artifacts/remittance-ui/dist/public
 - `DATABASE_URL` for Postgres
 - `MONGODB_URI` if Mongo-backed features should be enabled
 - `ADMIN_SECRET` or `SESSION_SECRET`
+- `HOT_WALLET` or `WALLET_ADDRESS` so `/api/wallet/address` does not return an empty address
+- `HOT_PRIVATE_KEY` if hot-wallet sweep functionality is enabled
+- `FLW_SECRET_KEY` for Flutterwave balance checks and payouts
+- `TRON_API` if you use a TronGrid API key
 - `CORS_ALLOWED_ORIGINS` for any non-default frontend domains
 - API keys / secrets
 - Any other runtime environment variables from `.env`
@@ -95,6 +104,12 @@ Render will auto-detect `render.yaml` for static sites.
 - Confirm `DATABASE_URL` is set or DB-backed routes will fail at request time
 - Confirm `MONGODB_URI` is set if visit tracking is expected
 - Confirm wallet and Flutterwave secrets are set for payout flows
+- Confirm `HOT_WALLET` or `WALLET_ADDRESS` is set if wallet endpoints must return a live deposit address
+
+**Homepage returns `Cannot GET /`:**
+- Redeploy the API web service from the latest `main`
+- Confirm the build command is exactly `corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build`
+- Clear the build cache in Render and redeploy if the service still serves an older API-only build
 
 **Missing dependencies:**
 - Always use `--prod=false`; use `--no-frozen-lockfile` if the lockfile is stale
