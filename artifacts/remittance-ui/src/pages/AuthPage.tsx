@@ -254,13 +254,11 @@ function ForgotPasswordStep({ onBack }: { onBack: () => void }) {
     setError("");
     setLoading(true);
     try {
-      const res = await apiFetch("/api/auth/forgot-password", {
+      await apiFetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.toLowerCase().trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Request failed");
       setDone(true);
     } catch (err: any) {
       setError(err.message ?? "Something went wrong");
@@ -360,13 +358,11 @@ function ResetPasswordStep({ token }: { token: string }) {
     }
     setLoading(true);
     try {
-      const res = await apiFetch("/api/auth/reset-password", {
+      await apiFetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Reset failed");
       setDone(true);
     } catch (err: any) {
       setError(err.message ?? "Something went wrong");

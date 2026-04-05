@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -187,6 +187,40 @@ app.use("/api/auth/google", loginLimiter);
 app.use("/api", visitTracker);
 
 app.use("/api", router);
+
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
+  const isApiRequest = req.path.startsWith("/api");
+  if (!isApiRequest) {
+    next(err);
+    return;
+  }
+
+  const message = err instanceof Error ? err.message : "Internal Server Error";
+  const status =
+    typeof err === "object" && err !== null && "status" in err && typeof (err as { status?: unknown }).status === "number"
+      ? ((err as { status: number }).status)
+      : message.includes("DATABASE_URL is not configured")
+        ? 503
+        : 500;
+
+  logger.error({ err, status, path: req.path, method: req.method }, "API request failed");
+
+  if (status === 503) {
+    res.status(503).json({
+      error: "Database is not configured. Authentication and dashboard features are temporarily unavailable.",
+    });
+    return;
+  }
+
+  res.status(status).json({
+    error: status >= 500 ? "Internal Server Error" : message,
+  });
+});
 
 const runtimeDir = dirname(fileURLToPath(import.meta.url));
 const remittanceUiDist = join(runtimeDir, "../../remittance-ui/dist/public");
