@@ -9,12 +9,13 @@
   },
   "scripts": {
     "preinstall": "sh -c 'echo Checking package manager...'",
-    "build": "pnpm install --no-frozen-lockfile && pnpm run typecheck && pnpm -r --if-present run build",
+    "build": "pnpm run typecheck:deploy && pnpm --dir artifacts/api-server build && pnpm --dir artifacts/app-ui build && pnpm --dir artifacts/admin-ui build && pnpm --dir artifacts/remittance-ui build",
     "build:api": "pnpm --dir artifacts/api-server build",
     "build:app": "pnpm --dir artifacts/app-ui build",
     "start": "pnpm --dir artifacts/api-server start",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck:deploy": "pnpm run typecheck:libs && pnpm --dir artifacts/api-server run typecheck && pnpm --dir artifacts/app-ui run typecheck && pnpm --dir artifacts/admin-ui run typecheck && pnpm --dir artifacts/remittance-ui run typecheck && pnpm --dir scripts run typecheck",
+    "typecheck": "pnpm run typecheck:deploy"
   },
   "pnpm": {
     "overrides": {
