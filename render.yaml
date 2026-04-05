@@ -4,24 +4,24 @@ services:
     env: node
     plan: free
     branch: main
-    buildCommand: pnpm install --prod=false && pnpm --dir artifacts/api-server build
+    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build
     startCommand: pnpm --dir artifacts/api-server start
 
 staticSites:
   - name: mbiopay-app-ui
     branch: main
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm --dir artifacts/app-ui build
+    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/app-ui build
     publishPath: artifacts/app-ui/dist
 
   - name: mbiopay-admin-ui
     branch: main
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm --dir artifacts/admin-ui build
+    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/admin-ui build
     publishPath: artifacts/admin-ui/dist
 
   - name: mbiopay-remittance-ui
     branch: main
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm --dir artifacts/remittance-ui build
+    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/remittance-ui build
     publishPath: artifacts/remittance-ui/dist
