@@ -283,12 +283,7 @@ router.post("/auth/login", async (req, res) => {
   }
 
   if (!user.emailVerified) {
-    const code = generateVerifyCode();
-    const expires = new Date(Date.now() + VERIFY_CODE_TTL_MS);
-    await db.update(usersTable)
-      .set({ emailVerifyCode: code, emailVerifyExpires: expires, updatedAt: new Date() })
-      .where(eq(usersTable.id, user.id));
-    await sendVerificationEmail(user.email, code).catch(() => {});
+    await sendOTP(user.email, getClientIP(req)).catch(() => {});
     res.status(403).json({ requiresVerification: true, email: user.email, error: "Please verify your email before signing in. A new code has been sent." });
     return;
   }

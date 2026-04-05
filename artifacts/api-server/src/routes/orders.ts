@@ -292,7 +292,8 @@ router.get("/orders/recent", requireAuth, async (req, res) => {
 });
 
 router.get("/orders/:id", requireAuth, async (req, res) => {
-  const id = parseInt(req.params.id ?? "", 10);
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId ?? "", 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid order ID" });
     return;

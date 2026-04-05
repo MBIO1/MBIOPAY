@@ -164,7 +164,8 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many login attempts, try again in a minute." },
   keyGenerator: (req) => {
-    const baseIp = ipKeyGenerator(req);
+    const clientIp = req.ip ?? req.socket.remoteAddress ?? "127.0.0.1";
+    const baseIp = ipKeyGenerator(clientIp);
     const ua = req.headers["user-agent"] ?? "";
     return createHash("sha256").update(baseIp + ua).digest("hex");
   },
