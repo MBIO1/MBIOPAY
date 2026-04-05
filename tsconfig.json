@@ -12,8 +12,3 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules"]
 }
-"devDependencies": {
-  "@types/node": "^20.0.0",
-  "typescript": "~5.9.2",
-  "prettier": "^3.8.1"
-}
