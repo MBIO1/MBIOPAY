@@ -4,6 +4,9 @@ import helmet from "helmet";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import { existsSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import router from "./routes";
 import { visitTracker } from "./routes/tracking";
 import { logger } from "./lib/logger";
@@ -184,6 +187,20 @@ app.use("/api/auth/google", loginLimiter);
 app.use("/api", visitTracker);
 
 app.use("/api", router);
+
+const runtimeDir = dirname(fileURLToPath(import.meta.url));
+const remittanceUiDist = join(runtimeDir, "../../remittance-ui/dist/public");
+
+if (existsSync(remittanceUiDist)) {
+  app.use(express.static(remittanceUiDist));
+
+  // Serve the remittance SPA from the same origin as the API.
+  app.get(/^\/(?!api(?:\/|$)|\.well-known(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(join(remittanceUiDist, "index.html"));
+  });
+} else {
+  logger.warn({ path: remittanceUiDist }, "Remittance UI build output not found; root route will not be served");
+}
 
 export default app;
 export { loginLimiter };
