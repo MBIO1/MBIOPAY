@@ -19,6 +19,30 @@ export const verifySchema = z.object({
   code: z.string().length(6, "OTP must be 6 digits"),
 });
 
+interface AuthUser {
+  id: number;
+  uid?: string;
+  email: string;
+  username?: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  phone?: string | null;
+  usernameSet?: boolean;
+  emailVerified?: boolean;
+  totpEnabled?: boolean;
+  createdAt?: string | Date;
+}
+
+interface AuthResponse {
+  token: string;
+  user: AuthUser;
+}
+
+interface AddPhoneResponse {
+  success: boolean;
+  phone: string;
+}
+
 // Hooks
 export function useUser() {
   return useQuery({
@@ -31,9 +55,9 @@ export function useUser() {
 
 export function useLogin() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<AuthResponse, Error, z.infer<typeof loginSchema>>({
     mutationFn: (data: z.infer<typeof loginSchema>) =>
-      fetchApi<{ token: string; user: any }>('/auth/login', {
+      fetchApi<AuthResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -56,9 +80,9 @@ export function useSignup() {
 
 export function useVerify() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<AuthResponse, Error, z.infer<typeof verifySchema>>({
     mutationFn: (data: z.infer<typeof verifySchema>) =>
-      fetchApi<{ token: string; user: any }>('/auth/verify-email', {
+      fetchApi<AuthResponse>('/auth/verify-email', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -71,9 +95,9 @@ export function useVerify() {
 
 export function useGoogleSignIn() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<AuthResponse, Error, string>({
     mutationFn: (credential: string) =>
-      fetchApi<{ token: string; user: any }>('/auth/google', {
+      fetchApi<AuthResponse>('/auth/google', {
         method: 'POST',
         body: JSON.stringify({ token: credential }),
       }),
@@ -86,14 +110,14 @@ export function useGoogleSignIn() {
 
 export function useAddPhone() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<AddPhoneResponse, Error, string>({
     mutationFn: (phone: string) =>
-      fetchApi<{ success: boolean; phone: string }>('/auth/add-phone', {
+      fetchApi<AddPhoneResponse>('/auth/add-phone', {
         method: 'POST',
         body: JSON.stringify({ phone }),
       }),
     onSuccess: (data) => {
-      queryClient.setQueryData(['/auth/me'], (prev: any) =>
+      queryClient.setQueryData<AuthUser | null>(['/auth/me'], (prev) =>
         prev ? { ...prev, phone: data.phone } : prev,
       );
     },

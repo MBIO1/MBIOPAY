@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { format } from "date-fns";
 import { ArrowUpRight, TrendingUp, Wallet, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { useWalletBalance, useStats } from "@/hooks/use-wallet";
-import { useRecentOrders } from "@/hooks/use-orders";
+import { useRecentOrders, type Order } from "@/hooks/use-orders";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -142,7 +142,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {recentOrders?.slice(0, 5).map((order) => (
+                {recentOrders?.slice(0, 5).map((order: Order) => (
                   <tr key={order.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
                       {format(new Date(order.createdAt), "MMM d, yyyy HH:mm")}
