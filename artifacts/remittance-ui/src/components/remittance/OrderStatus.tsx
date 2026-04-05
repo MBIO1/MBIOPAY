@@ -1,7 +1,6 @@
-import { useEffect } from "react";
 import { motion } from "framer-motion";
 import QRCode from "react-qr-code";
-import { CheckCircle2, Clock, Copy, AlertCircle, RefreshCw, Wallet, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Clock, Copy, AlertCircle, RefreshCw, Wallet, ArrowLeft, TimerOff } from "lucide-react";
 import { useGetOrder, useGetWalletAddress } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -19,10 +18,10 @@ export function OrderStatus({ orderId, onReset }: OrderStatusProps) {
   // Poll order status
   const { data: order, isError, refetch } = useGetOrder(orderId, {
     query: {
-      // Poll every 5 seconds unless completed or failed
+      // Poll every 5 seconds unless the order reaches a terminal state
       refetchInterval: (query) => {
         const status = query.state?.data?.status;
-        if (status === "completed" || status === "failed") return false;
+        if (status === "completed" || status === "failed" || status === "expired") return false;
         return 5000;
       },
     }
@@ -59,6 +58,7 @@ export function OrderStatus({ orderId, onReset }: OrderStatusProps) {
 
   const isCompleted = order.status === "completed";
   const isFailed = order.status === "failed";
+  const isExpired = order.status === "expired";
   const isProcessing = order.status === "processing";
   const isWaiting = order.status === "waiting";
 
@@ -79,7 +79,7 @@ export function OrderStatus({ orderId, onReset }: OrderStatusProps) {
       </div>
 
       {/* Deposit Instructions (Hidden if done) */}
-      {!isCompleted && !isFailed && (
+      {!isCompleted && !isFailed && !isExpired && (
         <div className="flex flex-col items-center justify-center p-6 bg-secondary/30 rounded-2xl border border-primary/20 glow-primary relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
           
@@ -151,12 +151,12 @@ export function OrderStatus({ orderId, onReset }: OrderStatusProps) {
 
           {/* Step 3: Complete / Failed */}
           <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group z-10">
-            <div className={`flex items-center justify-center w-9 h-9 rounded-full border-4 shadow-lg shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ${isCompleted ? 'bg-primary border-primary text-primary-foreground' : (isFailed ? 'bg-destructive border-destructive text-destructive-foreground' : 'bg-background border-border text-muted-foreground')}`}>
-              {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : (isFailed ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-4 h-4" />)}
+            <div className={`flex items-center justify-center w-9 h-9 rounded-full border-4 shadow-lg shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ${isCompleted ? 'bg-primary border-primary text-primary-foreground' : (isFailed ? 'bg-destructive border-destructive text-destructive-foreground' : isExpired ? 'bg-secondary border-border text-muted-foreground' : 'bg-background border-border text-muted-foreground')}`}>
+              {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : (isFailed ? <AlertCircle className="w-5 h-5" /> : isExpired ? <TimerOff className="w-5 h-5" /> : <CheckCircle2 className="w-4 h-4" />)}
             </div>
-            <div className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border shadow ${isCompleted ? 'bg-primary/10 border-primary glow-primary' : (isFailed ? 'bg-destructive/10 border-destructive' : 'bg-card border-border')}`}>
-              <h5 className={`font-bold ${isCompleted ? 'text-primary' : (isFailed ? 'text-destructive' : 'text-muted-foreground')}`}>
-                {isCompleted ? "Payment Sent!" : (isFailed ? "Transfer Failed" : "Completed")}
+            <div className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border shadow ${isCompleted ? 'bg-primary/10 border-primary glow-primary' : (isFailed ? 'bg-destructive/10 border-destructive' : isExpired ? 'bg-secondary/40 border-border' : 'bg-card border-border')}`}>
+              <h5 className={`font-bold ${isCompleted ? 'text-primary' : (isFailed ? 'text-destructive' : isExpired ? 'text-foreground' : 'text-muted-foreground')}`}>
+                {isCompleted ? "Payment Sent!" : (isFailed ? "Transfer Failed" : isExpired ? "Order Expired" : "Completed")}
               </h5>
               
               {isCompleted && (
@@ -174,7 +174,12 @@ export function OrderStatus({ orderId, onReset }: OrderStatusProps) {
                   Please contact support with Order #{orderId}.
                 </p>
               )}
-              {!isCompleted && !isFailed && (
+              {isExpired && (
+                <p className="text-xs mt-1 text-muted-foreground">
+                  No deposit was received before the timeout. Start a new transfer to continue.
+                </p>
+              )}
+              {!isCompleted && !isFailed && !isExpired && (
                 <p className="text-xs text-muted-foreground mt-1">Funds will arrive in mobile money shortly.</p>
               )}
             </div>

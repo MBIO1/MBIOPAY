@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Phone, ArrowRight, Building2 } from "lucide-react";
+import { Phone, ArrowRight, Building2, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateOrder } from "@workspace/api-client-react";
@@ -14,7 +14,9 @@ type Network = "MTN" | "Airtel";
 
 export function OrderForm({ onOrderCreated }: OrderFormProps) {
   const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState<Network | null>(null);
+  const parsedAmount = Number.parseFloat(amount) || 0;
 
   const createOrder = useCreateOrder({
     mutation: {
@@ -45,9 +47,13 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
       toast({ title: "Network Required", description: "Please select MTN or Airtel", variant: "destructive" });
       return;
     }
+    if (parsedAmount < 1) {
+      toast({ title: "Invalid Amount", description: "Minimum amount is 1 USDT", variant: "destructive" });
+      return;
+    }
 
     createOrder.mutate({
-      data: { phone, network },
+      data: { phone, network, expectedUsdt: parsedAmount },
     });
   };
 
@@ -66,6 +72,19 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
             value={phone}
             onChange={(e) => setPhone(e.target.value.replace(/[^0-9+]/g, ''))}
             icon={<Phone className="h-5 w-5" />}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground ml-1">Amount to Send (USDT)</label>
+          <Input
+            placeholder="Minimum 1.00"
+            type="number"
+            min="1"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            icon={<Banknote className="h-5 w-5" />}
           />
         </div>
 
@@ -104,7 +123,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
           size="lg"
           className="w-full mt-4"
           isLoading={createOrder.isPending}
-          disabled={!phone || !network}
+          disabled={!phone || !network || parsedAmount < 1}
         >
           <span>Continue to Payment</span>
           <ArrowRight className="ml-2 h-5 w-5" />

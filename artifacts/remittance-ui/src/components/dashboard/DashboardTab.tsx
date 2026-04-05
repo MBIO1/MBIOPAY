@@ -26,6 +26,7 @@ export function DashboardTab() {
       case "processing": return <Badge variant="default" className="animate-pulse">Processing</Badge>;
       case "waiting": return <Badge variant="warning">Waiting Deposit</Badge>;
       case "failed": return <Badge variant="destructive">Failed</Badge>;
+      case "expired": return <Badge variant="outline">Expired</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };

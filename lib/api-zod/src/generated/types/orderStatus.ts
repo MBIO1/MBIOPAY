@@ -13,4 +13,5 @@ export const OrderStatus = {
   processing: "processing",
   completed: "completed",
   failed: "failed",
+  expired: "expired",
 } as const;

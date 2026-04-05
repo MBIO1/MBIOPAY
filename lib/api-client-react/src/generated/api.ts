@@ -38,6 +38,11 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+type QueryConfig<TQueryFnData, TError, TData> = Omit<
+  UseQueryOptions<TQueryFnData, TError, TData>,
+  "queryFn" | "queryKey"
+>;
+
 /**
  * @summary Health check
  */
@@ -62,7 +67,7 @@ export const getHealthCheckQueryOptions = <
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -71,7 +76,7 @@ export const getHealthCheckQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getHealthCheckQueryKey();
+  const queryKey = getHealthCheckQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({
     signal,
@@ -97,7 +102,7 @@ export function useHealthCheck<
   TData = Awaited<ReturnType<typeof healthCheck>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof healthCheck>>,
     TError,
     TData
@@ -152,7 +157,7 @@ export const getGetQuoteQueryOptions = <
 >(
   params: GetQuoteParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryConfig<
       Awaited<ReturnType<typeof getQuote>>,
       TError,
       TData
@@ -162,7 +167,7 @@ export const getGetQuoteQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetQuoteQueryKey(params);
+  const queryKey = getGetQuoteQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getQuote>>> = ({
     signal,
@@ -190,7 +195,7 @@ export function useGetQuote<
 >(
   params: GetQuoteParams,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryConfig<
       Awaited<ReturnType<typeof getQuote>>,
       TError,
       TData
@@ -231,7 +236,7 @@ export const getGetWalletAddressQueryOptions = <
   TData = Awaited<ReturnType<typeof getWalletAddress>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof getWalletAddress>>,
     TError,
     TData
@@ -240,7 +245,7 @@ export const getGetWalletAddressQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetWalletAddressQueryKey();
+  const queryKey = getGetWalletAddressQueryKey();
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getWalletAddress>>
@@ -266,7 +271,7 @@ export function useGetWalletAddress<
   TData = Awaited<ReturnType<typeof getWalletAddress>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof getWalletAddress>>,
     TError,
     TData
@@ -306,7 +311,7 @@ export const getGetWalletBalanceQueryOptions = <
   TData = Awaited<ReturnType<typeof getWalletBalance>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof getWalletBalance>>,
     TError,
     TData
@@ -315,7 +320,7 @@ export const getGetWalletBalanceQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetWalletBalanceQueryKey();
+  const queryKey = getGetWalletBalanceQueryKey();
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getWalletBalance>>
@@ -341,7 +346,7 @@ export function useGetWalletBalance<
   TData = Awaited<ReturnType<typeof getWalletBalance>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof getWalletBalance>>,
     TError,
     TData
@@ -381,12 +386,12 @@ export const getGetStatsQueryOptions = <
   TData = Awaited<ReturnType<typeof getStats>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>;
+  query?: QueryConfig<Awaited<ReturnType<typeof getStats>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetStatsQueryKey();
+  const queryKey = getGetStatsQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getStats>>> = ({
     signal,
@@ -412,7 +417,7 @@ export function useGetStats<
   TData = Awaited<ReturnType<typeof getStats>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>;
+  query?: QueryConfig<Awaited<ReturnType<typeof getStats>>, TError, TData>;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetStatsQueryOptions(options);
@@ -534,7 +539,7 @@ export const getGetRecentOrdersQueryOptions = <
   TData = Awaited<ReturnType<typeof getRecentOrders>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof getRecentOrders>>,
     TError,
     TData
@@ -543,7 +548,7 @@ export const getGetRecentOrdersQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetRecentOrdersQueryKey();
+  const queryKey = getGetRecentOrdersQueryKey();
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecentOrders>>> = ({
     signal,
@@ -569,7 +574,7 @@ export function useGetRecentOrders<
   TData = Awaited<ReturnType<typeof getRecentOrders>>,
   TError = ErrorType<unknown>,
 >(options?: {
-  query?: UseQueryOptions<
+  query?: QueryConfig<
     Awaited<ReturnType<typeof getRecentOrders>>,
     TError,
     TData
@@ -612,7 +617,7 @@ export const getGetOrderQueryOptions = <
 >(
   id: number,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryConfig<
       Awaited<ReturnType<typeof getOrder>>,
       TError,
       TData
@@ -622,7 +627,7 @@ export const getGetOrderQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetOrderQueryKey(id);
+  const queryKey = getGetOrderQueryKey(id);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrder>>> = ({
     signal,
@@ -653,7 +658,7 @@ export function useGetOrder<
 >(
   id: number,
   options?: {
-    query?: UseQueryOptions<
+    query?: QueryConfig<
       Awaited<ReturnType<typeof getOrder>>,
       TError,
       TData
