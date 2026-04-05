@@ -8,9 +8,12 @@ set -e
 echo "🔨 Building MBIO-App..."
 echo "========================"
 
+# Ensure the pinned pnpm version is available in fresh CI environments.
+corepack enable
+
 # Install dependencies with dev packages
 echo "📦 Installing dependencies..."
-pnpm install --prod=false
+pnpm install --no-frozen-lockfile --prod=false
 
 # Build workspace libraries first
 echo "📚 Building workspace libraries..."

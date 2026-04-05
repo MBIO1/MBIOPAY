@@ -4,24 +4,40 @@ services:
     env: node
     plan: free
     branch: main
-    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build
+    healthCheckPath: /api/healthz
+    buildCommand: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build
     startCommand: pnpm --dir artifacts/api-server start
+    envVars:
+      - key: NODE_ENV
+        value: production
 
 staticSites:
   - name: mbiopay-app-ui
     branch: main
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/app-ui build
-    publishPath: artifacts/app-ui/dist
+    buildCommand: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/app-ui build
+    publishPath: artifacts/app-ui/dist/public
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
   - name: mbiopay-admin-ui
     branch: main
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/admin-ui build
-    publishPath: artifacts/admin-ui/dist
+    buildCommand: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/admin-ui build
+    publishPath: artifacts/admin-ui/dist/public
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
   - name: mbiopay-remittance-ui
     branch: main
     plan: free
-    buildCommand: pnpm install --prod=false && pnpm run typecheck && pnpm --dir artifacts/remittance-ui build
-    publishPath: artifacts/remittance-ui/dist
+    buildCommand: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/remittance-ui build
+    publishPath: artifacts/remittance-ui/dist/public
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

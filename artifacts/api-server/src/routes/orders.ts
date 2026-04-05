@@ -8,6 +8,7 @@ import { requireAuth } from "../lib/auth-middleware";
 import { getDynamicRate } from "../lib/dynamicRate";
 import { createDepositAccount, getFlutterwaveUgxBalance } from "../lib/walletWatcher";
 import { runFraudChecks, checkUserFrozen } from "../lib/fraudDetector";
+import { logger } from "../lib/logger";
 
 const ORDER_TTL_MINUTES = 30;
 

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { db } from "@workspace/db";
+import { db, isDatabaseConfigured } from "@workspace/db";
 import { ordersTable } from "@workspace/db/schema";
 import { eq, and, lt } from "drizzle-orm";
 import { logger } from "./logger";
@@ -292,6 +292,11 @@ async function expireStaleOrders(): Promise<void> {
 // =====================
 
 export function startWalletWatcher() {
+  if (!isDatabaseConfigured) {
+    logger.warn("DATABASE_URL not configured; wallet watcher disabled");
+    return;
+  }
+
   logger.info("MBIO wallet watcher started (per-order polling every 15s, rebalance every 60s, expiry every 60s)");
   watchOrders();
   expireStaleOrders();

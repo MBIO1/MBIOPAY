@@ -2,7 +2,7 @@
 
 ## Repository
 
-- **GitHub**: [https://github.com/Kemlive/MBIOPAY](https://github.com/Kemlive/MBIOPAY)
+- **GitHub**: [https://github.com/MBIO1/MBIOPAY](https://github.com/MBIO1/MBIOPAY)
 - **Branch**: `main`
 
 ## Deployment Changes Made
@@ -61,29 +61,34 @@ Created `render.yaml` with:
 2. Click **+ New**
 3. Select **Web Service** or **Static Site**
 4. Select **GitHub** as the repository source
-5. Authorize and select `Kemlive/MBIOPAY`
+5. Authorize and select `MBIO1/MBIOPAY`
 
 ### 2. For Backend (API Server)
-- Repository: `Kemlive/MBIOPAY`
+- Repository: `MBIO1/MBIOPAY`
 - Branch: `main`
-- Build Command: `pnpm install && pnpm --dir artifacts/api-server build`
+- Build Command: `corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build`
 - Start Command: `pnpm --dir artifacts/api-server start`
 - Environment: Node
 - Plan: Free (or suitable tier)
+- Health Check Path: `/api/healthz`
 
 Render will use `render.yaml` for automatic service detection.
 
 ### 3. For Frontends (Static Sites)
 Each frontend will auto-deploy as a **Static Site**:
-- Build Command: `pnpm install && pnpm --dir artifacts/<name> build`
-- Publish Directory: `artifacts/<name>/dist`
+- Build Command: `corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/<name> build`
+- Publish Directory: `artifacts/<name>/dist/public`
+- Rewrite Rule: `/* -> /index.html`
 - Auto-deployed from `render.yaml`
 
 ### 4. Environment Variables
 Set in Render environment settings:
 - `PORT` (set to 3000 for backend)
 - `NODE_ENV` (set to `production`)
-- Database URLs (if applicable)
+- `DATABASE_URL` for Postgres-backed routes
+- `MONGODB_URI` if Mongo-backed tracking should be enabled
+- `ADMIN_SECRET` or `SESSION_SECRET`
+- `CORS_ALLOWED_ORIGINS` for any extra frontend domains
 - API keys and secrets
 
 ### 5. Deploy from GitHub
@@ -113,7 +118,10 @@ pnpm start
 
 ## Notes
 
-- Lock file (`pnpm-lock.yaml`) will be regenerated on Render during first build
+- `corepack` now bootstraps the pinned pnpm version before install
+- Render installs with `--no-frozen-lockfile` to avoid stale-lockfile deploy failures
+- Static sites publish from `dist/public`, not the parent `dist` folder
+- The API now degrades more safely when optional infrastructure env vars are missing
 - All Replit-specific references have been removed for cross-platform compatibility
 - Frontends deploy as static sites; backend as Node.js web service
 - Free tier suitable for development/testing; upgrade as needed for production

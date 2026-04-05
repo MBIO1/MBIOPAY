@@ -23,8 +23,9 @@ Type: Web Service
 Environment: Node
 Plan: Free (upgrade if needed)
 Branch: main
-Build: pnpm install --prod=false && pnpm --dir artifacts/api-server build
+Build: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build
 Start: pnpm --dir artifacts/api-server start
+Health Check: /api/healthz
 Port: 3000 (set via PORT env var)
 ```
 
@@ -34,8 +35,8 @@ Service: mbiopay-app-ui
 Type: Static Site
 Plan: Free (upgrade if needed)
 Branch: main
-Build: pnpm install --prod=false && pnpm --dir artifacts/app-ui build
-Publish: artifacts/app-ui/dist
+Build: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/app-ui build
+Publish: artifacts/app-ui/dist/public
 ```
 
 ### 3. Admin UI (Static Site)
@@ -44,8 +45,8 @@ Service: mbiopay-admin-ui
 Type: Static Site
 Plan: Free (upgrade if needed)
 Branch: main
-Build: pnpm install --prod=false && pnpm --dir artifacts/admin-ui build
-Publish: artifacts/admin-ui/dist
+Build: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/admin-ui build
+Publish: artifacts/admin-ui/dist/public
 ```
 
 ### 4. Remittance UI (Static Site)
@@ -54,8 +55,8 @@ Service: mbiopay-remittance-ui
 Type: Static Site
 Plan: Free (upgrade if needed)
 Branch: main
-Build: pnpm install --prod=false && pnpm --dir artifacts/remittance-ui build
-Publish: artifacts/remittance-ui/dist
+Build: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/remittance-ui build
+Publish: artifacts/remittance-ui/dist/public
 ```
 
 ## Environment Variables (Set in Render Dashboard)
@@ -63,7 +64,10 @@ Publish: artifacts/remittance-ui/dist
 **For API Server:**
 - `PORT=3000`
 - `NODE_ENV=production`
-- Database URLs (if applicable)
+- `DATABASE_URL` for Postgres
+- `MONGODB_URI` if Mongo-backed features should be enabled
+- `ADMIN_SECRET` or `SESSION_SECRET`
+- `CORS_ALLOWED_ORIGINS` for any non-default frontend domains
 - API keys / secrets
 - Any other runtime environment variables from `.env`
 
@@ -81,17 +85,19 @@ Render will auto-detect `render.yaml` for static sites.
 
 ## Troubleshooting
 
-**Build fails with TypeScript errors:**
-- Ensure `pnpm install --prod=false` is used
+**Build fails with dependency or workspace errors:**
+- Ensure `corepack enable` runs before `pnpm`
+- Ensure `pnpm install --no-frozen-lockfile --prod=false` is used
 - Check that all workspace references in tsconfig.json are present
 - Verify git push includes all needed files
 
-**Port conflicts:**
-- Set `PORT` environment variable in Render dashboard
-- Backend uses PORT from env or defaults to 3000
+**Backend boots but returns limited functionality:**
+- Confirm `DATABASE_URL` is set or DB-backed routes will fail at request time
+- Confirm `MONGODB_URI` is set if visit tracking is expected
+- Confirm wallet and Flutterwave secrets are set for payout flows
 
 **Missing dependencies:**
-- Always use `--prod=false` flag for dev dependencies
+- Always use `--prod=false`; use `--no-frozen-lockfile` if the lockfile is stale
 - Catalog dependencies must be in pnpm-workspace.yaml
 
 ## Local Build
@@ -122,4 +128,4 @@ MBIO-App/
 
 ---
 **Last Updated**: April 5, 2026
-**Status**: Ready for Render deployment
+**Status**: Hardened for Render deployment

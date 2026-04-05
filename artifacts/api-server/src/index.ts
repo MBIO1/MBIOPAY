@@ -4,19 +4,30 @@ import { startWalletWatcher } from "./lib/walletWatcher";
 import { connectMongo } from "./lib/mongodb";
 
 const rawPort = process.env["PORT"];
+let port = 3000;
 
 if (!rawPort) {
-  throw new Error("PORT environment variable is required but was not provided.");
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  logger.warn({ fallbackPort: port }, "PORT was not provided; falling back to the default port");
+} else {
+  const parsedPort = Number(rawPort);
+  if (Number.isNaN(parsedPort) || parsedPort <= 0) {
+    logger.warn({ rawPort, fallbackPort: port }, "Invalid PORT value provided; falling back to the default port");
+  } else {
+    port = parsedPort;
+  }
 }
 
 // Connect to MongoDB (non-blocking — app starts regardless)
 connectMongo().catch(() => {});
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+});
+
+process.on("uncaughtException", (err) => {
+  logger.fatal({ err }, "Uncaught exception");
+  process.exit(1);
+});
 
 const server = app.listen(port, (err) => {
   if (err) {

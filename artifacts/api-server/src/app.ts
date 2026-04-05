@@ -89,6 +89,12 @@ function buildAllowedOrigins(): Set<string> {
   origins.add("https://admin.mbiopay.com");
   origins.add("https://api.mbiopay.com");
 
+  const envOrigins = process.env.CORS_ALLOWED_ORIGINS?.split(",") ?? [];
+  envOrigins
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .forEach((origin) => origins.add(origin));
+
   if (process.env.NODE_ENV !== "production") {
     origins.add("http://localhost:3000");
     origins.add("http://localhost:5173");
@@ -100,11 +106,26 @@ function buildAllowedOrigins(): Set<string> {
 
 const allowedOrigins = buildAllowedOrigins();
 
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.has(origin)) return true;
+
+  try {
+    const parsed = new URL(origin);
+    return (
+      parsed.protocol === "https:" &&
+      (parsed.hostname.endsWith(".onrender.com") ||
+        parsed.hostname.endsWith(".render.com"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.has(origin)) return callback(null, true);
+      if (isAllowedOrigin(origin)) return callback(null, true);
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,

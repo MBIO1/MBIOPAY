@@ -1,4 +1,4 @@
-import { db } from "@workspace/db";
+import { db, isDatabaseConfigured } from "@workspace/db";
 import { ordersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
@@ -52,11 +52,20 @@ async function getHotWalletBalance(): Promise<number> {
 }
 
 async function getPendingDemand(): Promise<number> {
-  const rows = await db
-    .select()
-    .from(ordersTable)
-    .where(eq(ordersTable.status, "waiting"));
-  return rows.length;
+  if (!isDatabaseConfigured) {
+    return 0;
+  }
+
+  try {
+    const rows = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.status, "waiting"));
+    return rows.length;
+  } catch (err) {
+    logger.warn({ err }, "Failed to fetch pending demand");
+    return 0;
+  }
 }
 
 export async function getDynamicRate(): Promise<RateResult> {
