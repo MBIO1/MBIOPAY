@@ -180,7 +180,7 @@ export function SendTab() {
   const checkServiceStatus = async () => {
     try {
       const data = await apiFetch<ServiceStatusResponse>("/api/service-status");
-      setServiceAvailable(data.available);
+      setServiceAvailable(data.available ?? null);
       setServiceReason(data.reason ?? "");
     } catch {
       // Network error — don't block the user, let them try
