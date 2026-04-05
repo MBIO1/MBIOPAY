@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "isolatedModules": true,
     "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,11 +13,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "isolatedModules": true,
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@workspace/*": ["./packages/*/src"]
+      "@workspace/*": ["./lib/*/src"]
     }
   },
   "exclude": ["node_modules", "dist"]
