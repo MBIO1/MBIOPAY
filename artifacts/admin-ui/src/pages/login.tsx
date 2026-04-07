@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { ShieldCheck, Mail, Lock, KeyRound } from "lucide-react";
 import { motion } from "framer-motion";
@@ -24,7 +24,7 @@ export default function LoginPage() {
     }
   }, [session, setLocation]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     

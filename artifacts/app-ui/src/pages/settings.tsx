@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,7 +36,7 @@ const twoFADisableSchema = z.object({
 
 type SettingsTab = "profile" | "security" | "appearance";
 
-const THEME_OPTIONS: { value: Theme; label: string; icon: React.ReactNode; description: string }[] = [
+const THEME_OPTIONS: { value: Theme; label: string; icon: ReactNode; description: string }[] = [
   { value: "light",  label: "Light",  icon: <Sun className="w-5 h-5" />,     description: "Always use light mode" },
   { value: "dark",   label: "Dark",   icon: <Moon className="w-5 h-5" />,    description: "Always use dark mode" },
   { value: "auto",   label: "System", icon: <Monitor className="w-5 h-5" />, description: "Follow your device setting" },
@@ -143,7 +143,7 @@ export default function SettingsPage() {
     }
   };
 
-  const NAV_TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
+  const NAV_TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
     { id: "profile",    label: "Account Profile",  icon: <User className="w-5 h-5" /> },
     { id: "security",   label: "Security & 2FA",   icon: <Shield className="w-5 h-5" /> },
     { id: "appearance", label: "Appearance",        icon: <Sun className="w-5 h-5" /> },
