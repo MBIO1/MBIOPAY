@@ -10,9 +10,9 @@ const hasPgEnv = Boolean(process.env.PGHOST);
 
 export const isDatabaseConfigured = Boolean(connectionString || hasPgEnv);
 
-// Render external PostgreSQL always requires SSL
+// SSL only needed for external Render hostnames (.render.com), not internal (no dot domain or .internal)
 const needsSsl = connectionString
-  ? connectionString.includes("render.com") && !connectionString.includes(".internal")
+  ? connectionString.includes(".render.com")
   : false;
 
 const poolConfig = connectionString
