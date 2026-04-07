@@ -5,13 +5,28 @@ import * as schema from "./schema";
 const { Pool } = pg;
 type Database = ReturnType<typeof drizzle>;
 
+// Accept DATABASE_URL or individual PG* env vars (Render auto-injects PGHOST, PGUSER, etc.)
 const connectionString = process.env.DATABASE_URL?.trim();
+const hasPgEnv = Boolean(process.env.PGHOST);
 
-export const isDatabaseConfigured = Boolean(connectionString);
+export const isDatabaseConfigured = Boolean(connectionString || hasPgEnv);
 
-export const pool = connectionString
+const poolConfig = connectionString
+  ? { connectionString, ssl: connectionString.includes("render.com") ? { rejectUnauthorized: false } : undefined }
+  : hasPgEnv
+  ? {
+      host: process.env.PGHOST,
+      port: Number(process.env.PGPORT ?? 5432),
+      user: process.env.PGUSER,
+      password: process.env.PGPASSWORD,
+      database: process.env.PGDATABASE,
+      ssl: { rejectUnauthorized: false },
+    }
+  : null;
+
+export const pool = poolConfig
   ? new Pool({
-      connectionString,
+      ...poolConfig,
       max: 10,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
@@ -27,7 +42,7 @@ pool?.on("error", (err) => {
 const actualDb = pool ? drizzle(pool, { schema }) : null;
 
 function missingDatabaseError() {
-  return new Error("DATABASE_URL is not configured. Database-backed routes are unavailable.");
+  return new Error("DATABASE_URL or PG* env vars are not configured. Database-backed routes are unavailable.");
 }
 
 export const db = new Proxy({} as Database, {
