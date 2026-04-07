@@ -4,8 +4,6 @@ import helmet from "helmet";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import session from "express-session";
-import RedisStore from "connect-redis";
-import { Redis } from "ioredis";
 import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -140,13 +138,8 @@ app.use(
 );
 
 const sessionStore = (() => {
-  if (process.env.REDIS_URL) {
-    const redisClient = new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: null });
-    redisClient.connect().catch(() => {});
-    return new RedisStore({ client: redisClient, prefix: "mbio:sess:" });
-  }
   if (process.env.NODE_ENV === "production") {
-    console.warn("[session] REDIS_URL not set — falling back to MemoryStore (not suitable for production)");
+    console.warn("[session] MemoryStore in use — set REDIS_URL to enable Redis session store");
   }
   return undefined; // MemoryStore default
 })();
