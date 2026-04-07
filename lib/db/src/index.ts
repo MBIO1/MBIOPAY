@@ -12,7 +12,7 @@ const hasPgEnv = Boolean(process.env.PGHOST);
 export const isDatabaseConfigured = Boolean(connectionString || hasPgEnv);
 
 const poolConfig = connectionString
-  ? { connectionString, ssl: connectionString.includes("render.com") ? { rejectUnauthorized: false } : undefined }
+  ? { connectionString, ssl: (connectionString.includes("render.com") && !connectionString.includes(".internal")) ? { rejectUnauthorized: false } : undefined }
   : hasPgEnv
   ? {
       host: process.env.PGHOST,
@@ -64,3 +64,4 @@ export function getDatabaseStatus() {
 }
 
 export * from "./schema";
+
