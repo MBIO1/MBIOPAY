@@ -12,7 +12,7 @@
     "build": "pnpm run typecheck:deploy && pnpm --dir artifacts/api-server build && pnpm --dir artifacts/app-ui build && pnpm --dir artifacts/admin-ui build",
     "build:api": "pnpm --dir artifacts/api-server build",
     "build:app": "pnpm --dir artifacts/app-ui build",
-    "start": "pnpm --dir artifacts/api-server start",
+    "start": "pnpm --dir lib/db push --force && pnpm --dir artifacts/api-server start",
     "typecheck:libs": "tsc --build",
     "typecheck:deploy": "pnpm run typecheck:libs && pnpm --dir artifacts/api-server run typecheck && pnpm --dir artifacts/app-ui run typecheck && pnpm --dir artifacts/admin-ui run typecheck && pnpm --dir artifacts/remittance-ui run typecheck && pnpm --dir scripts run typecheck",
     "typecheck": "pnpm run typecheck:deploy"
