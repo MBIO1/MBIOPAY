@@ -229,7 +229,7 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   }
 
   res.status(status).json({
-    error: status >= 500 ? "Internal Server Error" : message,
+    error: status >= 500 ? `Internal Server Error: ${message}` : message,
   });
 });
 
