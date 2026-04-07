@@ -5,14 +5,18 @@ import * as schema from "./schema";
 const { Pool } = pg;
 type Database = ReturnType<typeof drizzle>;
 
-// Accept DATABASE_URL or individual PG* env vars (Render auto-injects PGHOST, PGUSER, etc.)
 const connectionString = process.env.DATABASE_URL?.trim();
 const hasPgEnv = Boolean(process.env.PGHOST);
 
 export const isDatabaseConfigured = Boolean(connectionString || hasPgEnv);
 
+// Render external PostgreSQL always requires SSL
+const needsSsl = connectionString
+  ? connectionString.includes("render.com") && !connectionString.includes(".internal")
+  : false;
+
 const poolConfig = connectionString
-  ? { connectionString, ssl: (connectionString.includes("render.com") && !connectionString.includes(".internal")) ? { rejectUnauthorized: false } : undefined }
+  ? { connectionString, ssl: needsSsl ? { rejectUnauthorized: false } : undefined }
   : hasPgEnv
   ? {
       host: process.env.PGHOST,
@@ -42,26 +46,19 @@ pool?.on("error", (err) => {
 const actualDb = pool ? drizzle(pool, { schema }) : null;
 
 function missingDatabaseError() {
-  return new Error("DATABASE_URL or PG* env vars are not configured. Database-backed routes are unavailable.");
+  return new Error("DATABASE_URL or PG* env vars are not configured.");
 }
 
 export const db = new Proxy({} as Database, {
   get(_target, prop, receiver) {
-    if (!actualDb) {
-      throw missingDatabaseError();
-    }
-
+    if (!actualDb) throw missingDatabaseError();
     const value = Reflect.get(actualDb as object, prop, receiver);
     return typeof value === "function" ? value.bind(actualDb) : value;
   },
 }) as Database;
 
 export function getDatabaseStatus() {
-  return {
-    configured: isDatabaseConfigured,
-    connected: pool !== null,
-  };
+  return { configured: isDatabaseConfigured, connected: pool !== null };
 }
 
 export * from "./schema";
-
