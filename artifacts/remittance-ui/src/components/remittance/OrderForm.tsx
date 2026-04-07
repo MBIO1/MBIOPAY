@@ -53,7 +53,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
     }
 
     createOrder.mutate({
-      data: { phone, network, amount: parsedAmount },
+      data: { phone, network, expectedUsdt: parsedAmount },
     });
   };
 
