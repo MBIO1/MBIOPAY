@@ -6,7 +6,7 @@ services:
     branch: main
     healthCheckPath: /api/healthz
     buildCommand: corepack enable && pnpm install --no-frozen-lockfile --prod=false && pnpm run typecheck && pnpm --dir artifacts/api-server build
-    startCommand: pnpm --dir artifacts/api-server start
+    startCommand: pnpm --dir lib/db push --force && pnpm --dir artifacts/api-server start
     envVars:
       - key: NODE_ENV
         value: production
