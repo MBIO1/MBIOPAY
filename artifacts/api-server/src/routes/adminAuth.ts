@@ -47,12 +47,18 @@ router.get("/admin/setup-totp", async (_req, res) => {
 // ─── POST /api/admin/register ──────────────────────────────────────────────────
 // One-time admin registration (only allowed if no admins exist yet)
 router.post("/admin/register", async (req, res) => {
-  const { email, password, totpSecret, totpToken } = req.body as {
+  const { adminSecret, email, password, totpSecret, totpToken } = req.body as {
+    adminSecret?: string;
     email: string;
     password: string;
     totpSecret: string;
     totpToken: string;
   };
+
+  if (adminSecret !== process.env.ADMIN_SECRET) {
+    res.status(403).json({ error: "Invalid admin secret" });
+    return;
+  }
 
   if (!email || !password || !totpSecret || !totpToken) {
     res.status(400).json({ error: "email, password, totpSecret, and totpToken are required" });
@@ -90,14 +96,17 @@ router.post("/admin/register", async (req, res) => {
 
 // ─── POST /api/admin/login ─────────────────────────────────────────────────────
 router.post("/admin/login", async (req, res) => {
-  const { email, password, token, device } = req.body as {
+  const { email, password, token: bodyToken, totpCode, device } = req.body as {
     email: string;
     password: string;
-    token: string;
+    token?: string;
+    totpCode?: string;
     device: string;
   };
 
-  if (!email || !password || !token) {
+  const code = (bodyToken ?? totpCode) as string | undefined;
+
+  if (!email || !password || !code) {
     res.status(400).json({ error: "Email, password, and authenticator code are required" });
     return;
   }
@@ -122,7 +131,7 @@ router.post("/admin/login", async (req, res) => {
   const verified = speakeasy.totp.verify({
     secret: admin.totpSecret,
     encoding: "base32",
-    token,
+    token: code,
     window: 1,
   });
 
@@ -167,13 +176,19 @@ router.post("/admin/logout", (req, res) => {
 });
 
 // ─── GET /api/admin/session ────────────────────────────────────────────────────
-router.get("/admin/session", (req, res) => {
+function adminSessionHandler(req: any, res: any) {
   if (req.session?.isAdmin) {
     res.json({ authenticated: true, email: req.session.adminEmail });
   } else {
     res.json({ authenticated: false });
   }
-});
+}
+
+router.get("/admin/session", adminSessionHandler);
+
+// ─── GET /api/admin/me ─────────────────────────────────────────────────────────
+// Alias for /admin/session used by the admin UI
+router.get("/admin/me", adminSessionHandler);
 
 // ─── POST /api/admin/reset-device ─────────────────────────────────────────────
 // Allows admin to clear device binding (requires TOTP verification)

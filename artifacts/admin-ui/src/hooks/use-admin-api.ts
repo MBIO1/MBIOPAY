@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
-// --- Custom Fetcher with 401 Interception ---
+// --- Custom Fetcher with 401/403 Interception ---
 async function adminFetch(path: string, options: RequestInit = {}) {
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
@@ -12,10 +12,10 @@ async function adminFetch(path: string, options: RequestInit = {}) {
       "Content-Type": "application/json",
       ...options.headers,
     },
-    credentials: "include", // Required for session cookie
+    credentials: "include",
   });
 
-  if (res.status === 401) {
+  if (res.status === 401 || res.status === 403) {
     window.location.href = "/login";
     throw new Error("Unauthorized");
   }
@@ -38,8 +38,6 @@ function parseWithLogging<T>(schema: z.ZodType<T>, data: unknown, label: string)
   const result = schema.safeParse(data);
   if (!result.success) {
     console.error(`[Zod Error] ${label}:`, result.error.format());
-    // For development resilience, we still return the casted data so UI doesn't completely break, 
-    // but in strict mode we should throw. We'll throw to be safe but log heavily.
     throw result.error;
   }
   return result.data;
@@ -47,69 +45,89 @@ function parseWithLogging<T>(schema: z.ZodType<T>, data: unknown, label: string)
 
 // --- Schemas ---
 
-export const adminUserSchema = z.object({
-  id: z.coerce.string(),
-  email: z.string(),
-  role: z.string().optional(),
-});
-
-export const loginSchema = z.object({
-  success: z.boolean(),
-  user: adminUserSchema.optional(),
+export const sessionSchema = z.object({
+  authenticated: z.boolean(),
+  email: z.string().optional(),
 });
 
 export const overviewSchema = z.object({
   totalUsers: z.coerce.number().default(0),
+  activeUsers: z.coerce.number().default(0),
+  frozenUsers: z.coerce.number().default(0),
   totalOrders: z.coerce.number().default(0),
-  totalVolume: z.coerce.number().default(0),
-  totalRevenue: z.coerce.number().default(0),
-  fraudFlags: z.coerce.number().default(0),
+  completedOrders: z.coerce.number().default(0),
   pendingOrders: z.coerce.number().default(0),
+  failedOrders: z.coerce.number().default(0),
+  totalRevenue: z.coerce.number().default(0),
+  hotBalance: z.coerce.number().default(0),
+  hotIsLow: z.boolean().default(false),
+  flwBalance: z.coerce.number().nullable().default(null),
+  fraudFlags: z.coerce.number().default(0),
+  blockedPhones: z.coerce.number().default(0),
 });
 
+// Maps actual backend fields to UI-friendly names via transform
 export const userSchema = z.object({
-  id: z.coerce.string().or(z.number().transform(String)),
-  name: z.string().nullable().default("Unknown"),
+  id: z.coerce.number(),
   email: z.string(),
-  avatar: z.string().nullable().optional(),
-  joinedAt: z.coerce.date().or(z.string().transform(str => new Date(str))),
-  riskScore: z.coerce.number().default(0),
+  username: z.string().nullable().optional(),
+  displayName: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
   isFrozen: z.boolean().default(false),
-});
+  riskScore: z.coerce.number().default(0),
+  createdAt: z.coerce.date(),
+}).transform((u) => ({
+  ...u,
+  name: u.displayName ?? u.username ?? u.email.split("@")[0],
+  joinedAt: u.createdAt,
+}));
 
 export const orderSchema = z.object({
-  id: z.coerce.string().or(z.number().transform(String)),
-  userId: z.coerce.string().optional(),
-  userName: z.string().nullable().default("Unknown User"),
-  amountUsdt: z.coerce.number().default(0),
-  amountUgx: z.coerce.number().default(0),
-  network: z.enum(["MTN", "Airtel"]).or(z.string()),
-  recipientPhone: z.string(),
-  status: z.enum(["waiting", "processing", "completed", "failed"]).or(z.string()),
-  createdAt: z.coerce.date().or(z.string().transform(str => new Date(str))),
-});
+  id: z.coerce.number(),
+  userId: z.coerce.number().nullable().optional(),
+  phone: z.string(),
+  network: z.string(),
+  amount: z.coerce.number().nullable().default(0),
+  ugxAmount: z.coerce.number().nullable().default(0),
+  status: z.string(),
+  txid: z.string().nullable().optional(),
+  depositAddress: z.string().nullable().optional(),
+  expiresAt: z.coerce.date().nullable().optional(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+}).transform((o) => ({
+  ...o,
+  amountUsdt: o.amount ?? 0,
+  amountUgx: o.ugxAmount ?? 0,
+  recipientPhone: o.phone,
+}));
 
 export const analyticsSchema = z.object({
   totalVisits: z.coerce.number().default(0),
-  uniqueIps: z.coerce.number().default(0),
   totalLeads: z.coerce.number().default(0),
-  totalReferrals: z.coerce.number().default(0),
   topCountries: z.array(z.object({
     country: z.string(),
-    count: z.coerce.number()
+    count: z.coerce.number(),
   })).default([]),
 });
+
+// Inferred types
+export type OverviewData = z.infer<typeof overviewSchema>;
+export type UserData = z.output<typeof userSchema>;
+export type OrderData = z.output<typeof orderSchema>;
+export type AnalyticsData = z.infer<typeof analyticsSchema>;
 
 // --- Hooks ---
 
 export function useAdminSession() {
   return useQuery({
-    queryKey: ["admin", "me"],
+    queryKey: ["admin", "session"],
     queryFn: async () => {
       try {
-        const data = await adminFetch("/admin/me");
-        return parseWithLogging(adminUserSchema, data.user || data, "Admin Session");
-      } catch (e) {
+        const data = await adminFetch("/admin/session");
+        const parsed = parseWithLogging(sessionSchema, data, "Admin Session");
+        return parsed.authenticated ? parsed : null;
+      } catch {
         return null;
       }
     },
@@ -121,15 +139,15 @@ export function useAdminSession() {
 export function useAdminLogin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (credentials: Record<string, string>) => {
+    mutationFn: async (credentials: { email: string; password: string; token: string }) => {
       const data = await adminFetch("/admin/login", {
         method: "POST",
         body: JSON.stringify(credentials),
       });
-      return parseWithLogging(loginSchema, data, "Admin Login");
+      return data as { ok: boolean };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "session"] });
     },
   });
 }
@@ -141,7 +159,7 @@ export function useAdminLogout() {
       await adminFetch("/admin/logout", { method: "POST" });
     },
     onSuccess: () => {
-      queryClient.setQueryData(["admin", "me"], null);
+      queryClient.setQueryData(["admin", "session"], null);
       queryClient.clear();
       window.location.href = "/login";
     },
@@ -152,14 +170,8 @@ export function useOverview() {
   return useQuery({
     queryKey: ["admin", "overview"],
     queryFn: async () => {
-      // Mock fallback if endpoint missing during dev
-      try {
-        const data = await adminFetch("/admin/overview");
-        return parseWithLogging(overviewSchema, data, "Overview");
-      } catch (e) {
-        console.warn("Using mock overview data", e);
-        return { totalUsers: 12450, totalOrders: 4892, totalVolume: 1250400.50, totalRevenue: 450000000, fraudFlags: 12, pendingOrders: 45 };
-      }
+      const data = await adminFetch("/admin/overview");
+      return parseWithLogging(overviewSchema, data, "Overview");
     },
   });
 }
@@ -168,17 +180,8 @@ export function useAdminUsers() {
   return useQuery({
     queryKey: ["admin", "users"],
     queryFn: async () => {
-      try {
-        const data = await adminFetch("/admin/users");
-        return parseWithLogging(z.array(userSchema), data, "Users");
-      } catch (e) {
-        console.warn("Using mock users data");
-        return [
-          { id: "u1", name: "John Doe", email: "john@example.com", joinedAt: new Date(), riskScore: 15, isFrozen: false },
-          { id: "u2", name: "Alice Smith", email: "alice@example.com", joinedAt: new Date(Date.now() - 86400000), riskScore: 45, isFrozen: false },
-          { id: "u3", name: "Bob Scam", email: "bob@scam.com", joinedAt: new Date(Date.now() - 86400000*5), riskScore: 85, isFrozen: true },
-        ];
-      }
+      const data = await adminFetch("/admin/users");
+      return parseWithLogging(z.array(userSchema), data, "Users");
     },
   });
 }
@@ -186,11 +189,23 @@ export function useAdminUsers() {
 export function useFreezeUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, freeze }: { id: string, freeze: boolean }) => {
+    mutationFn: async ({ id, reason }: { id: number; reason?: string }) => {
       await adminFetch(`/admin/freeze/${id}`, {
         method: "POST",
-        body: JSON.stringify({ freeze })
+        body: JSON.stringify({ reason: reason ?? "Manual freeze by admin" }),
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useUnfreezeUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await adminFetch(`/admin/unfreeze/${id}`, { method: "POST" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
@@ -202,18 +217,8 @@ export function useAdminOrders() {
   return useQuery({
     queryKey: ["admin", "orders"],
     queryFn: async () => {
-      try {
-        const data = await adminFetch("/admin/orders");
-        return parseWithLogging(z.array(orderSchema), data, "Orders");
-      } catch (e) {
-        console.warn("Using mock orders data");
-        return [
-          { id: "ORD-9921", userName: "John Doe", amountUsdt: 150, amountUgx: 540000, network: "MTN", recipientPhone: "+256770000000", status: "completed", createdAt: new Date() },
-          { id: "ORD-9922", userName: "Alice Smith", amountUsdt: 50, amountUgx: 180000, network: "Airtel", recipientPhone: "+256750000000", status: "processing", createdAt: new Date(Date.now() - 3600000) },
-          { id: "ORD-9923", userName: "Unknown User", amountUsdt: 500, amountUgx: 1800000, network: "MTN", recipientPhone: "+256771111111", status: "waiting", createdAt: new Date(Date.now() - 7200000) },
-          { id: "ORD-9924", userName: "Bob Scam", amountUsdt: 2000, amountUgx: 7200000, network: "Airtel", recipientPhone: "+256752222222", status: "failed", createdAt: new Date(Date.now() - 86400000) },
-        ];
-      }
+      const data = await adminFetch("/admin/orders");
+      return parseWithLogging(z.array(orderSchema), data, "Orders");
     },
   });
 }
@@ -222,25 +227,20 @@ export function useAnalytics() {
   return useQuery({
     queryKey: ["admin", "analytics"],
     queryFn: async () => {
-      try {
-        const data = await adminFetch("/admin/mongo-analytics");
-        return parseWithLogging(analyticsSchema, data, "Analytics");
-      } catch (e) {
-         console.warn("Using mock analytics data");
-         return {
-           totalVisits: 145020,
-           uniqueIps: 89040,
-           totalLeads: 4500,
-           totalReferrals: 1200,
-           topCountries: [
-             { country: "UG", count: 85000 },
-             { country: "US", count: 25000 },
-             { country: "GB", count: 15000 },
-             { country: "AE", count: 10020 },
-             { country: "KE", count: 5000 },
-           ]
-         };
-      }
+      const data = await adminFetch("/admin/mongo-analytics");
+      return parseWithLogging(analyticsSchema, data, "Analytics");
+    },
+  });
+}
+
+export function useResetRisk() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await adminFetch(`/admin/reset-risk/${id}`, { method: "POST" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
     },
   });
 }

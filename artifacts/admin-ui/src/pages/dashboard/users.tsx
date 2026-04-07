@@ -5,12 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAdminUsers, useFreezeUser } from "@/hooks/use-admin-api";
+import { useAdminUsers, useFreezeUser, useUnfreezeUser } from "@/hooks/use-admin-api";
 import { cn } from "@/lib/utils";
 
 export default function UsersPage() {
   const { data: users, isLoading } = useAdminUsers();
   const freezeMutation = useFreezeUser();
+  const unfreezeMutation = useUnfreezeUser();
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredUsers = users?.filter(user => 
@@ -18,9 +19,13 @@ export default function UsersPage() {
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  const handleToggleFreeze = (id: string, currentlyFrozen: boolean) => {
+  const handleToggleFreeze = (id: number, currentlyFrozen: boolean) => {
     if (confirm(`Are you sure you want to ${currentlyFrozen ? 'unfreeze' : 'freeze'} this user?`)) {
-      freezeMutation.mutate({ id, freeze: !currentlyFrozen });
+      if (currentlyFrozen) {
+        unfreezeMutation.mutate(id);
+      } else {
+        freezeMutation.mutate({ id });
+      }
     }
   };
 
@@ -110,7 +115,7 @@ export default function UsersPage() {
                       <Button 
                         variant={user.isFrozen ? "outline" : "destructive"} 
                         size="sm"
-                        onClick={() => handleToggleFreeze(String(user.id), !!user.isFrozen)}
+                        onClick={() => handleToggleFreeze(user.id, !!user.isFrozen)}
                         className="w-28"
                       >
                         {user.isFrozen ? (

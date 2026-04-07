@@ -34,7 +34,7 @@ export default function LoginPage() {
     }
 
     try {
-      await loginMutation.mutateAsync({ email, password, totpCode: totp });
+      await loginMutation.mutateAsync({ email, password, token: totp });
       setLocation("/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid credentials");

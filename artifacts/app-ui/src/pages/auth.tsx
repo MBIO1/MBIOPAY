@@ -26,20 +26,40 @@ declare global {
 
 const GOOGLE_CLIENT_ID = "164482455669-9ujlu5kroaqdhms05sacmjbq0aciam06.apps.googleusercontent.com";
 
-type AuthMode = "login" | "signup" | "verify" | "phone";
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+type AuthMode = "login" | "signup" | "verify" | "phone" | "forgot" | "reset";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  // Detect ?step=phone from the URL (set by ProtectedRoute when hasPhone is false)
+
   const initialMode: AuthMode = (() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("reset")) return "reset";
     return params.get("step") === "phone" ? "phone" : "login";
   })();
+
+  const resetToken = (() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("reset") ?? "";
+  })();
+
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [emailForVerification, setEmailForVerification] = useState("");
   const [e164Phone, setE164Phone] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  // Forgot password state
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  // Reset password state
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
 
   const loginMutation = useLogin();
   const signupMutation = useSignup();
@@ -47,7 +67,6 @@ export default function AuthPage() {
   const googleSignIn = useGoogleSignIn();
   const addPhone = useAddPhone();
 
-  // After a successful login, go to phone step if user has no phone, else dashboard
   const postLogin = (user: any) => {
     if (!user?.phone) {
       setMode("phone");
@@ -56,9 +75,8 @@ export default function AuthPage() {
     }
   };
 
-  // Initialize Google Sign-In button
   useEffect(() => {
-    if (mode === "verify" || mode === "phone") return;
+    if (mode === "verify" || mode === "phone" || mode === "forgot" || mode === "reset") return;
 
     const initGoogle = () => {
       if (!window.google || !googleBtnRef.current) return;
@@ -154,6 +172,53 @@ export default function AuthPage() {
     }
   };
 
+  const onForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setForgotLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data?.error ?? "Failed to send reset email");
+      }
+      setForgotSent(true);
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const onResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast({ variant: "destructive", title: "Passwords don't match", description: "Please make sure both passwords are the same." });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Failed to reset password");
+      setResetDone(true);
+      toast({ title: "Password reset!", description: "You can now sign in with your new password." });
+      setTimeout(() => setLocation("/auth"), 2500);
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Reset failed", description: error.message });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex bg-background relative overflow-hidden">
       {/* Background Effects */}
@@ -162,7 +227,7 @@ export default function AuthPage() {
 
       {/* Auth Container */}
       <div className="w-full max-w-md mx-auto flex flex-col justify-center px-6 relative z-10">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
@@ -179,7 +244,7 @@ export default function AuthPage() {
 
         <div className="glass-panel rounded-3xl p-8">
           <AnimatePresence mode="wait">
-            
+
             {mode === "login" && (
               <motion.div
                 key="login"
@@ -190,8 +255,8 @@ export default function AuthPage() {
               >
                 <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                   <div className="space-y-1">
-                    <Input 
-                      placeholder="Email address" 
+                    <Input
+                      placeholder="Email address"
                       icon={<Mail className="w-5 h-5" />}
                       {...loginForm.register("email")}
                     />
@@ -200,9 +265,9 @@ export default function AuthPage() {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <Input 
-                      type="password" 
-                      placeholder="Password" 
+                    <Input
+                      type="password"
+                      placeholder="Password"
                       icon={<Lock className="w-5 h-5" />}
                       {...loginForm.register("password")}
                     />
@@ -210,9 +275,9 @@ export default function AuthPage() {
                       <p className="text-xs text-destructive pl-1">{loginForm.formState.errors.password.message}</p>
                     )}
                   </div>
-                  
+
                   <div className="flex justify-end">
-                    <button type="button" className="text-xs text-primary hover:text-primary/80">
+                    <button type="button" className="text-xs text-primary hover:text-primary/80" onClick={() => setMode("forgot")}>
                       Forgot password?
                     </button>
                   </div>
@@ -249,8 +314,8 @@ export default function AuthPage() {
               >
                 <form onSubmit={signupForm.handleSubmit(onSignup)} className="space-y-4">
                   <div className="space-y-1">
-                    <Input 
-                      placeholder="Full Name" 
+                    <Input
+                      placeholder="Full Name"
                       icon={<User className="w-5 h-5" />}
                       {...signupForm.register("name")}
                     />
@@ -259,8 +324,8 @@ export default function AuthPage() {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <Input 
-                      placeholder="Email address" 
+                    <Input
+                      placeholder="Email address"
                       icon={<Mail className="w-5 h-5" />}
                       {...signupForm.register("email")}
                     />
@@ -269,9 +334,9 @@ export default function AuthPage() {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <Input 
-                      type="password" 
-                      placeholder="Create Password" 
+                    <Input
+                      type="password"
+                      placeholder="Create Password"
                       icon={<Lock className="w-5 h-5" />}
                       {...signupForm.register("password")}
                     />
@@ -319,8 +384,8 @@ export default function AuthPage() {
                 </p>
 
                 <form onSubmit={verifyForm.handleSubmit(onVerify)} className="space-y-4">
-                  <Input 
-                    placeholder="Enter 6-digit code" 
+                  <Input
+                    placeholder="Enter 6-digit code"
                     className="text-center text-2xl tracking-widest font-mono h-14"
                     maxLength={6}
                     {...verifyForm.register("code")}
@@ -380,6 +445,93 @@ export default function AuthPage() {
                 >
                   Skip for now
                 </button>
+              </motion.div>
+            )}
+
+            {mode === "forgot" && (
+              <motion.div
+                key="forgot"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="text-center"
+              >
+                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Reset your password</h3>
+                {forgotSent ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      If an account exists for <span className="text-white">{forgotEmail}</span>, you'll receive a reset link shortly.
+                    </p>
+                    <button onClick={() => setMode("login")} className="text-sm text-primary hover:underline">
+                      Back to sign in
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Enter your email and we'll send you a link to reset your password.
+                    </p>
+                    <form onSubmit={onForgotPassword} className="space-y-4">
+                      <Input
+                        type="email"
+                        placeholder="Email address"
+                        icon={<Mail className="w-5 h-5" />}
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        required
+                      />
+                      <Button type="submit" className="w-full mt-4" size="lg" isLoading={forgotLoading}>
+                        Send Reset Link
+                      </Button>
+                    </form>
+                    <button onClick={() => setMode("login")} className="mt-6 text-sm text-muted-foreground hover:text-white transition-colors">
+                      Back to login
+                    </button>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {mode === "reset" && (
+              <motion.div
+                key="reset"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="text-center"
+              >
+                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Lock className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Set new password</h3>
+                {resetDone ? (
+                  <p className="text-sm text-muted-foreground">Password updated! Redirecting to sign in…</p>
+                ) : (
+                  <form onSubmit={onResetPassword} className="space-y-4 mt-4">
+                    <Input
+                      type="password"
+                      placeholder="New password"
+                      icon={<Lock className="w-5 h-5" />}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+                    <Input
+                      type="password"
+                      placeholder="Confirm new password"
+                      icon={<Lock className="w-5 h-5" />}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
+                    <Button type="submit" className="w-full mt-4" size="lg" isLoading={resetLoading}>
+                      Reset Password
+                    </Button>
+                  </form>
+                )}
               </motion.div>
             )}
 

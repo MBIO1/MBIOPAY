@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
-const ACCESS_SECRET = process.env.JWT_SECRET ?? "mbio-access-secret";
-const REFRESH_SECRET = process.env.REFRESH_SECRET ?? "mbio-refresh-secret";
+const ACCESS_SECRET = process.env.JWT_SECRET ?? (process.env.NODE_ENV === "production" ? (() => { throw new Error("JWT_SECRET env var is required in production"); })() : "mbio-access-secret-dev");
+const REFRESH_SECRET = process.env.REFRESH_SECRET ?? (process.env.NODE_ENV === "production" ? (() => { throw new Error("REFRESH_SECRET env var is required in production"); })() : "mbio-refresh-secret-dev");
 
 export interface JwtPayload {
   id: number;

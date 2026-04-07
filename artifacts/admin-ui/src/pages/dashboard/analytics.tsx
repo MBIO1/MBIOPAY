@@ -1,4 +1,4 @@
-import { Globe, Users, Link as LinkIcon, MapPin } from "lucide-react";
+import { Globe, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAnalytics } from "@/hooks/use-admin-api";
 
@@ -7,9 +7,7 @@ export default function AnalyticsPage() {
 
   const stats = [
     { title: "Total Visits", value: data?.totalVisits?.toLocaleString(), icon: Globe, color: "text-blue-400" },
-    { title: "Unique IPs", value: data?.uniqueIps?.toLocaleString(), icon: MapPin, color: "text-indigo-400" },
     { title: "Email Leads", value: data?.totalLeads?.toLocaleString(), icon: Users, color: "text-emerald-400" },
-    { title: "Referrals", value: data?.totalReferrals?.toLocaleString(), icon: LinkIcon, color: "text-amber-400" },
   ];
 
   // Calculate max count for the bar chart scaling
@@ -22,7 +20,7 @@ export default function AnalyticsPage() {
         <p className="text-muted-foreground mt-1">Insights driven by MongoDB tracking data.</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 gap-4 md:gap-6">
         {stats.map((stat, i) => (
           <Card key={i} className="glass-card">
             <CardContent className="p-6">

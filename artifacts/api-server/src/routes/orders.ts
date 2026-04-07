@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import axios from "axios";
 import { db } from "@workspace/db";
-import { ordersTable } from "@workspace/db/schema";
+import { ordersTable, usersTable } from "@workspace/db/schema";
 import { eq, desc, and, gte } from "drizzle-orm";
 import { z } from "zod";
 import { requireAuth } from "../lib/auth-middleware";
@@ -24,13 +24,21 @@ const UGANDA_PHONE_RE = /^256\d{9}$/;
 const CreateOrderSchema = z.object({
   phone: z
     .string()
-    .regex(UGANDA_PHONE_RE, "Invalid phone number. Use format: 256XXXXXXXXX (e.g. 256700000000)"),
+    .regex(UGANDA_PHONE_RE, "Invalid phone number. Use format: 256XXXXXXXXX (e.g. 256700000000)")
+    .optional(),
   network: z.enum(["MTN", "Airtel"]),
+  amount: z
+    .number()
+    .positive("USDT amount must be positive")
+    .min(MIN_TX_AMOUNT, `Minimum amount is ${MIN_TX_AMOUNT} USDT`)
+    .max(MAX_TX_AMOUNT, `Maximum amount is ${MAX_TX_AMOUNT} USDT`)
+    .optional(),
   expectedUsdt: z
     .number()
     .positive("USDT amount must be positive")
     .min(MIN_TX_AMOUNT, `Minimum amount is ${MIN_TX_AMOUNT} USDT`)
-    .max(MAX_TX_AMOUNT, `Maximum amount is ${MAX_TX_AMOUNT} USDT`),
+    .max(MAX_TX_AMOUNT, `Maximum amount is ${MAX_TX_AMOUNT} USDT`)
+    .optional(),
   idempotencyKey: z.string().min(8).max(64).optional(),
 });
 
@@ -150,7 +158,31 @@ router.post("/orders", requireAuth, async (req, res) => {
     return;
   }
 
-  const { phone, network, expectedUsdt, idempotencyKey } = parsed.data;
+  let { phone, idempotencyKey } = parsed.data;
+  const { network } = parsed.data;
+  const expectedUsdt = parsed.data.expectedUsdt ?? parsed.data.amount;
+  const userId = req.user!.id;
+
+  if (!expectedUsdt || expectedUsdt < MIN_TX_AMOUNT) {
+    res.status(400).json({ error: `Minimum amount is ${MIN_TX_AMOUNT} USDT` });
+    return;
+  }
+
+  if (expectedUsdt > MAX_TX_AMOUNT) {
+    res.status(400).json({ error: `Maximum amount is ${MAX_TX_AMOUNT} USDT` });
+    return;
+  }
+
+  // Auto-populate phone from user profile if logged in
+  if (!phone && userId) {
+    const [userRow] = await db.select({ phone: usersTable.phone }).from(usersTable).where(eq(usersTable.id, userId));
+    if (userRow?.phone) phone = userRow.phone;
+  }
+
+  if (!phone || !UGANDA_PHONE_RE.test(phone)) {
+    res.status(400).json({ error: "Invalid phone number. Use format: 256XXXXXXXXX (e.g. 256700000000)" });
+    return;
+  }
 
   if (idempotencyKey) {
     const iKey = `${req.user!.id}:${idempotencyKey}`;

@@ -4,6 +4,8 @@ import helmet from "helmet";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import RedisStore from "connect-redis";
+import { Redis } from "ioredis";
 import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -137,8 +139,21 @@ app.use(
   }),
 );
 
+const sessionStore = (() => {
+  if (process.env.REDIS_URL) {
+    const redisClient = new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: null });
+    redisClient.connect().catch(() => {});
+    return new RedisStore({ client: redisClient, prefix: "mbio:sess:" });
+  }
+  if (process.env.NODE_ENV === "production") {
+    console.warn("[session] REDIS_URL not set — falling back to MemoryStore (not suitable for production)");
+  }
+  return undefined; // MemoryStore default
+})();
+
 app.use(
   session({
+    store: sessionStore,
     secret: process.env.ADMIN_SECRET ?? "mbio-admin-fallback-secret",
     resave: false,
     saveUninitialized: false,
@@ -182,6 +197,9 @@ app.use("/api", globalLimiter);
 app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth/signup", loginLimiter);
 app.use("/api/auth/google", loginLimiter);
+
+const refreshLimiter = rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
+app.use("/api/auth/refresh", refreshLimiter);
 
 // Visit tracking (MongoDB, non-blocking)
 app.use("/api", visitTracker);

@@ -322,12 +322,14 @@ router.post("/auth/login", async (req, res) => {
 
 // ─── POST /api/auth/refresh ───────────────────────────────────────────────────
 router.post("/auth/refresh", async (req, res) => {
-  const { refreshToken } = req.body;
+  const token = req.cookies?.mbio_refresh ?? req.body?.refreshToken;
 
-  if (!refreshToken || typeof refreshToken !== "string") {
-    res.status(400).json({ error: "Refresh token required" });
+  if (!token || typeof token !== "string") {
+    res.status(401).json({ error: "No refresh token" });
     return;
   }
+
+  const refreshToken = token;
 
   try {
     const payload = verifyRefresh(refreshToken);

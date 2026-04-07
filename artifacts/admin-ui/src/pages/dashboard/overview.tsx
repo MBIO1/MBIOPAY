@@ -1,4 +1,4 @@
-import { Users, Activity, DollarSign, Wallet, ShieldAlert, Clock } from "lucide-react";
+import { Users, Activity, DollarSign, Wallet, ShieldAlert, Clock, Phone, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOverview } from "@/hooks/use-admin-api";
 import { formatCurrency } from "@/lib/utils";
@@ -22,8 +22,8 @@ export default function OverviewPage() {
       bg: "bg-indigo-500/10",
     },
     {
-      title: "Volume (USDT)",
-      value: formatCurrency(data?.totalVolume || 0, 'USDT'),
+      title: "FLW Balance (UGX)",
+      value: formatCurrency(data?.flwBalance || 0, 'UGX'),
       icon: Wallet,
       color: "text-emerald-400",
       bg: "bg-emerald-500/10",
@@ -48,6 +48,20 @@ export default function OverviewPage() {
       icon: Clock,
       color: "text-orange-400",
       bg: "bg-orange-500/10",
+    },
+    {
+      title: "Blocked Phones",
+      value: data?.blockedPhones?.toLocaleString() || "0",
+      icon: Phone,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10",
+    },
+    {
+      title: "Completed Orders",
+      value: data?.completedOrders?.toLocaleString() || "0",
+      icon: CheckCircle,
+      color: "text-teal-400",
+      bg: "bg-teal-500/10",
     },
   ];
 
