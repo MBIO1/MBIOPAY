@@ -14,10 +14,13 @@ export default function UsersPage() {
   const unfreezeMutation = useUnfreezeUser();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredUsers = users?.filter(user => 
-    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const getDisplayName = (user: { displayName?: string | null; username?: string | null; email: string }) =>
+    user.displayName ?? user.username ?? user.email.split("@")[0];
+
+  const filteredUsers = users?.filter(user => {
+    const name = getDisplayName(user).toLowerCase();
+    return name.includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  }) || [];
 
   const handleToggleFreeze = (id: number, currentlyFrozen: boolean) => {
     if (confirm(`Are you sure you want to ${currentlyFrozen ? 'unfreeze' : 'freeze'} this user?`)) {
@@ -87,16 +90,16 @@ export default function UsersPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                          {user.name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+                          {getDisplayName(user)[0]?.toUpperCase() || user.email[0].toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-medium text-foreground">{user.name}</div>
+                          <div className="font-medium text-foreground">{getDisplayName(user)}</div>
                           <div className="text-xs text-muted-foreground">{user.email}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {format(new Date(user.joinedAt), "MMM d, yyyy")}
+                      {format(new Date(user.createdAt), "MMM d, yyyy")}
                     </td>
                     <td className="px-6 py-4">
                       <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border", getRiskColor(user.riskScore ?? 0))}>

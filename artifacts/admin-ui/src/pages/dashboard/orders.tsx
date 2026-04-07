@@ -93,13 +93,13 @@ export default function OrdersPage() {
                       {format(new Date(order.createdAt), "MMM d, HH:mm")}
                     </td>
                     <td className="px-6 py-4 font-medium text-foreground">
-                      {order.userName}
+                      {order.userId ?? '—'}
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-emerald-400">
-                      {formatCurrency(order.amountUsdt ?? 0, 'USDT')}
+                      {formatCurrency(order.amount ?? 0, 'USDT')}
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-white">
-                      {formatCurrency(order.amountUgx ?? 0, 'UGX')}
+                      {formatCurrency(order.ugxAmount ?? 0, 'UGX')}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export default function OrdersPage() {
                         </span>
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <Smartphone className="w-3 h-3" />
-                          {order.recipientPhone}
+                          {order.phone}
                         </span>
                       </div>
                     </td>
