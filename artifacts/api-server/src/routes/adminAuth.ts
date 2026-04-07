@@ -9,14 +9,6 @@ import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-declare module "express-session" {
-  interface SessionData {
-    isAdmin?: boolean;
-    adminId?: number;
-    adminEmail?: string;
-  }
-}
-
 // ─── Middleware: require admin session ─────────────────────────────────────────
 export function requireAdmin(req: any, res: any, next: any) {
   if (!req.session?.isAdmin) {

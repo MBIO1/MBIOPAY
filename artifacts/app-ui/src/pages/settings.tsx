@@ -54,7 +54,7 @@ export default function SettingsPage() {
   const [twoFaQr, setTwoFaQr] = useState<string | null>(null);
   const [twoFaLoading, setTwoFaLoading] = useState(false);
 
-  const userData = user as any;
+  const userData = (user as any)?.user ?? user as any;
 
   useEffect(() => {
     if (userData?.totpEnabled !== undefined) setTwoFaEnabled(!!userData.totpEnabled);
