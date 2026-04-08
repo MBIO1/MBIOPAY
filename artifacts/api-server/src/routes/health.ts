@@ -52,7 +52,7 @@ router.get("/healthz", async (_req, res) => {
   res.json({ ...data, db: dbStatus, tables: tableStatus, dbConfigured: isDatabaseConfigured });
 });
 
-router.post("/api/run-migration", async (_req, res) => {
+router.post("/run-migration", async (_req, res) => {
   if (!pool) {
     res.status(503).json({ error: "No database" });
     return;
