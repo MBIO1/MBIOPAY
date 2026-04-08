@@ -9,7 +9,7 @@
   },
   "scripts": {
     "preinstall": "sh -c 'echo Checking package manager...'",
-    "build": "pnpm run typecheck:deploy && pnpm --dir artifacts/api-server build && pnpm --dir artifacts/app-ui build && pnpm --dir artifacts/admin-ui build",
+    "build": "pnpm run typecheck:deploy && pnpm --dir artifacts/api-server build && pnpm --dir artifacts/app-ui build && pnpm --dir artifacts/admin-ui build && pnpm --dir lib/db push --force",
     "build:api": "pnpm --dir artifacts/api-server build",
     "build:app": "pnpm --dir artifacts/app-ui build",
     "start": "pnpm --dir lib/db push --force && pnpm --dir artifacts/api-server start",
