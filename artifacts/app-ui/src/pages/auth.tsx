@@ -80,34 +80,42 @@ export default function AuthPage() {
 
     const initGoogle = () => {
       if (!window.google || !googleBtnRef.current) return;
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async (response: { credential: string }) => {
-          try {
-            const data = await googleSignIn.mutateAsync(response.credential);
-            toast({ title: "Welcome!", description: "Signed in with Google." });
-            postLogin(data.user);
-          } catch (err: any) {
-            toast({ variant: "destructive", title: "Google Sign-In failed", description: err.message });
-          }
-        },
-      });
-      window.google.accounts.id.renderButton(googleBtnRef.current, {
-        theme: "filled_black",
-        size: "large",
-        width: googleBtnRef.current.offsetWidth || 320,
-        text: mode === "signup" ? "signup_with" : "signin_with",
-        shape: "rectangular",
-      });
+      try {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (response: { credential: string }) => {
+            try {
+              const data = await googleSignIn.mutateAsync(response.credential);
+              toast({ title: "Welcome!", description: "Signed in with Google." });
+              postLogin(data.user);
+            } catch (err: any) {
+              toast({ variant: "destructive", title: "Google Sign-In failed", description: err.message });
+            }
+          },
+        });
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: "filled_black",
+          size: "large",
+          width: googleBtnRef.current.offsetWidth || 320,
+          text: mode === "signup" ? "signup_with" : "signin_with",
+          shape: "rectangular",
+        });
+      } catch (e) {
+        console.error("Google init error:", e);
+      }
     };
 
+    // Try immediately in case script already loaded
+    initGoogle();
+
+    // Also listen for script load event
     if (!window.google) {
       const script = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
-      script?.addEventListener("load", initGoogle);
-      return () => script?.removeEventListener("load", initGoogle);
+      if (script) {
+        script.addEventListener("load", initGoogle);
+        return () => script.removeEventListener("load", initGoogle);
+      }
     }
-    initGoogle();
-    return;
   }, [mode]);
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
