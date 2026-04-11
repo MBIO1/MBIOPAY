@@ -6,9 +6,10 @@ import { eq, desc, and, gte } from "drizzle-orm";
 import { z } from "zod";
 import { requireAuth } from "../lib/auth-middleware";
 import { getDynamicRate } from "../lib/dynamicRate";
-import { createDepositAccount, getFlutterwaveUgxBalance } from "../lib/walletWatcher";
+import { createDepositAccount, getFlutterwaveUgxBalance, getPawaPayBalance } from "../lib/walletWatcher";
 import { runFraudChecks, checkUserFrozen } from "../lib/fraudDetector";
 import { logger } from "../lib/logger";
+import { isPawaPayEnabled } from "../lib/pawapayService";
 
 const ORDER_TTL_MINUTES = 30;
 
@@ -114,10 +115,21 @@ router.get("/resolve-account", requireAuth, async (req, res) => {
 router.get("/service-status", async (_req, res) => {
   try {
     const { finalRate } = await getDynamicRate();
-    // Service is available as long as rate can be computed.
-    // UGX balance is fetched for informational purposes only — never used to gate service.
-    const balance = await getFlutterwaveUgxBalance();
-    res.json({ available: true, ugxBalance: balance });
+    const flwBalance = await getFlutterwaveUgxBalance();
+    const pawapayBalance = await getPawaPayBalance();
+    
+    res.json({ 
+      available: true, 
+      ugxBalance: flwBalance,
+      pawapay: {
+        enabled: isPawaPayEnabled(),
+        balance: pawapayBalance?.balance ?? null,
+      },
+      providers: {
+        flutterwave: flwBalance !== null,
+        pawapay: isPawaPayEnabled(),
+      }
+    });
   } catch {
     res.json({ available: true });
   }

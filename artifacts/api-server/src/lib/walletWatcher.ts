@@ -5,6 +5,12 @@ import { eq, and, lt } from "drizzle-orm";
 import { logger } from "./logger";
 import { encrypt, decrypt } from "./encryption";
 import { getDynamicRate } from "./dynamicRate";
+import {
+  isPawaPayEnabled,
+  getPawaPayBalance,
+  executePawaPayPayout,
+  getPawaPayPayoutStatus,
+} from "./pawapayService";
 
 const { TronWeb } = require("tronweb") as { TronWeb: any };
 
@@ -54,7 +60,7 @@ export async function createDepositAccount(): Promise<{ address: string; encrypt
 }
 
 // =====================
-// 💰 FLUTTERWAVE BALANCE
+// 💰 BALANCE CHECKERS
 // =====================
 
 let cachedFlwBalance: { ugx: number; fetchedAt: number } | null = null;
@@ -83,13 +89,34 @@ export function invalidateFlwBalanceCache() {
   cachedFlwBalance = null;
 }
 
+// Re-export PawaPay functions
+export { getPawaPayBalance };
+
 // =====================
-// 💳 FLUTTERWAVE PAYOUT
+// 💳 PAYOUT EXECUTION
 // =====================
 
-async function executePayout(orderId: number, phone: string, network: string, amount: number): Promise<void> {
+async function executePayout(orderId: number, phone: string, network: string, amount: number, recipientName?: string): Promise<void> {
   const { finalRate } = await getDynamicRate();
   const ugx = Math.floor(amount * finalRate);
+
+  // Try PawaPay first if enabled
+  if (isPawaPayEnabled()) {
+    const result = await executePawaPayPayout(orderId, phone, network, ugx, recipientName || "MBIO Customer");
+    
+    if (result.success) {
+      await db
+        .update(ordersTable)
+        .set({ status: "completed", ugxAmount: ugx, updatedAt: new Date(), txid: result.payoutId })
+        .where(eq(ordersTable.id, orderId));
+      return;
+    }
+    
+    // Log PawaPay failure and fall back to Flutterwave
+    logger.warn({ orderId, error: result.error }, "PawaPay payout failed, falling back to Flutterwave");
+  }
+
+  // Flutterwave fallback
   const flwNetwork = network === "MTN" ? "MPS" : "AIN";
 
   try {
