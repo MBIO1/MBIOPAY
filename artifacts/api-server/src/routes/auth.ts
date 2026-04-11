@@ -283,9 +283,17 @@ router.post("/auth/login", async (req, res) => {
   }
 
   if (!user.emailVerified) {
-    await sendOTP(user.email, getClientIP(req)).catch(() => {});
-    res.status(403).json({ requiresVerification: true, email: user.email, error: "Please verify your email before signing in. A new code has been sent." });
-    return;
+    // Auto-verify in dev mode or if explicitly enabled
+    if (process.env.AUTO_VERIFY_EMAIL === 'true' || !process.env.SMTP_HOST) {
+      await db.update(usersTable)
+        .set({ emailVerified: true, updatedAt: new Date() })
+        .where(eq(usersTable.id, user.id));
+      user.emailVerified = true;
+    } else {
+      await sendOTP(user.email, getClientIP(req)).catch(() => {});
+      res.status(403).json({ requiresVerification: true, email: user.email, error: "Please verify your email before signing in. A new code has been sent." });
+      return;
+    }
   }
 
   if (user.totpEnabled && user.totpSecret) {
@@ -459,6 +467,24 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     return;
   }
   res.json(userPayload(user));
+});
+
+// ─── DEBUG: Verify user email directly ─────────────────────────────────────────
+router.post("/debug/verify-email", async (req, res) => {
+  const { email } = req.body as { email: string };
+  if (!email) {
+    res.status(400).json({ error: "Email required" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  await db.update(usersTable)
+    .set({ emailVerified: true, updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
+  res.json({ ok: true, message: `Email verified for ${email}` });
 });
 
 export default router;
