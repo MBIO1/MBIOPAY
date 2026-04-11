@@ -236,11 +236,14 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
 const runtimeDir = dirname(fileURLToPath(import.meta.url));
 const remittanceUiDist = join(runtimeDir, "../../remittance-ui/dist/public");
 
+// Serve uploaded avatars
+app.use("/uploads", express.static(join(process.cwd(), "uploads")));
+
 if (existsSync(remittanceUiDist)) {
   app.use(express.static(remittanceUiDist));
 
   // Serve the remittance SPA from the same origin as the API.
-  app.get(/^\/(?!api(?:\/|$)|\.well-known(?:\/|$)).*/, (_req, res) => {
+  app.get(/^\/(?!api(?:\/|$)|\.well-known(?:\/|$)|uploads(?:\/|$)).*/, (_req, res) => {
     res.sendFile(join(remittanceUiDist, "index.html"));
   });
 } else {

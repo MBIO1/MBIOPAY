@@ -5,10 +5,21 @@ import { db } from "@workspace/db";
 import { usersTable, refreshTokensTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/auth-middleware";
+import { writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import { join } from "path";
+import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+// Ensure uploads directory exists
+const UPLOAD_DIR = join(process.cwd(), "uploads", "avatars");
+if (!existsSync(UPLOAD_DIR)) {
+  mkdir(UPLOAD_DIR, { recursive: true }).catch(console.error);
+}
 
 const UpdateProfileSchema = z.object({
   displayName: z.string().min(1).max(60).optional(),
@@ -210,6 +221,65 @@ router.post("/auth/add-phone", requireAuth, async (req, res) => {
     .where(eq(usersTable.id, req.user!.id));
 
   res.json({ success: true, phone: phone.trim() });
+});
+
+// POST /api/profile/avatar — upload avatar image
+router.post("/profile/avatar", requireAuth, async (req, res) => {
+  try {
+    const { image } = req.body as { image?: string };
+
+    if (!image || typeof image !== "string") {
+      res.status(400).json({ error: "Image data required" });
+      return;
+    }
+
+    // Check if it's a data URL
+    const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!match) {
+      res.status(400).json({ error: "Invalid image format. Expected base64 data URL" });
+      return;
+    }
+
+    const [, mimeType, base64Data] = match;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+      res.status(400).json({ 
+        error: `Invalid image type. Allowed: ${ALLOWED_IMAGE_TYPES.join(", ")}` 
+      });
+      return;
+    }
+
+    const buffer = Buffer.from(base64Data, "base64");
+
+    if (buffer.length > MAX_AVATAR_BYTES) {
+      res.status(400).json({ 
+        error: `Image too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Max: 2MB` 
+      });
+      return;
+    }
+
+    // Generate unique filename
+    const ext = mimeType.replace("image/", "").replace("jpeg", "jpg");
+    const filename = `${randomUUID()}.${ext}`;
+    const filepath = join(UPLOAD_DIR, filename);
+
+    // Save file
+    await writeFile(filepath, buffer);
+
+    // Generate URL (relative)
+    const avatarUrl = `/uploads/avatars/${filename}`;
+
+    // Update user
+    await db
+      .update(usersTable)
+      .set({ avatarUrl, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.user!.id));
+
+    res.json({ success: true, avatarUrl });
+  } catch (error: any) {
+    console.error("[AVATAR UPLOAD] Error:", error);
+    res.status(500).json({ error: "Failed to upload avatar" });
+  }
 });
 
 export default router;
