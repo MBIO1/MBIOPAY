@@ -100,6 +100,11 @@ router.post("/auth/2fa/disable", requireAuth, async (req, res) => {
     return;
   }
 
+  if (!user.passwordHash) {
+    res.status(400).json({ error: "Password login not available for this account" });
+    return;
+  }
+
   const passOk = await bcrypt.compare(password, user.passwordHash);
   if (!passOk) {
     res.status(401).json({ error: "Incorrect password" });

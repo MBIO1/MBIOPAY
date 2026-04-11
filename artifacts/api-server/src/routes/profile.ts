@@ -165,6 +165,11 @@ router.patch("/profile/password", requireAuth, async (req, res) => {
     return;
   }
 
+  if (!user.passwordHash) {
+    res.status(400).json({ error: "Password change not available for this account" });
+    return;
+  }
+
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) {
     res.status(401).json({ error: "Current password is incorrect" });
