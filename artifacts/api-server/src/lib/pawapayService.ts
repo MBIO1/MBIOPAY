@@ -2,12 +2,14 @@ import axios from "axios";
 import { logger } from "./logger";
 
 // PawaPay API Configuration
-const PAWAPAY_API_URL = process.env.PAWAPAY_API_URL ?? "https://api.pawapay.io";
+const PAWAPAY_ENV = process.env.PAWAPAY_ENV ?? "sandbox"; // 'sandbox' or 'production'
+const PAWAPAY_API_URL = PAWAPAY_ENV === "production" 
+  ? "https://api.pawapay.io" 
+  : "https://api.sandbox.pawapay.io";
 const PAWAPAY_API_KEY = process.env.PAWAPAY_API_KEY ?? "";
-const PAWAPAY_API_SECRET = process.env.PAWAPAY_API_SECRET ?? "";
 const PAWAPAY_MERCHANT_ID = process.env.PAWAPAY_MERCHANT_ID ?? "";
 
-const isPawaPayConfigured = PAWAPAY_API_KEY && PAWAPAY_API_SECRET && PAWAPAY_MERCHANT_ID;
+const isPawaPayConfigured = Boolean(PAWAPAY_API_KEY);
 
 // PawaPay network codes for Uganda
 const PAWAPAY_NETWORK_CODES: Record<string, string> = {
@@ -52,6 +54,23 @@ export function isPawaPayEnabled(): boolean {
 }
 
 /**
+ * Get PawaPay API headers
+ */
+function getHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Authorization": `Bearer ${PAWAPAY_API_KEY}`,
+    "Content-Type": "application/json",
+  };
+  
+  // Only add merchant ID if provided (optional in sandbox)
+  if (PAWAPAY_MERCHANT_ID) {
+    headers["X-Merchant-Id"] = PAWAPAY_MERCHANT_ID;
+  }
+  
+  return headers;
+}
+
+/**
  * Get PawaPay balance
  */
 export async function getPawaPayBalance(): Promise<{ currency: string; balance: number } | null> {
@@ -63,12 +82,7 @@ export async function getPawaPayBalance(): Promise<{ currency: string; balance: 
     const response = await axios.get(
       `${PAWAPAY_API_URL}/merchant/v1/balances`,
       {
-        headers: {
-          "Authorization": `Bearer ${PAWAPAY_API_KEY}`,
-          "X-Api-Secret": PAWAPAY_API_SECRET,
-          "X-Merchant-Id": PAWAPAY_MERCHANT_ID,
-          "Content-Type": "application/json",
-        },
+        headers: getHeaders(),
         timeout: 10000,
       }
     );
@@ -131,10 +145,7 @@ export async function executePawaPayPayout(
       payload,
       {
         headers: {
-          "Authorization": `Bearer ${PAWAPAY_API_KEY}`,
-          "X-Api-Secret": PAWAPAY_API_SECRET,
-          "X-Merchant-Id": PAWAPAY_MERCHANT_ID,
-          "Content-Type": "application/json",
+          ...getHeaders(),
           "Idempotency-Key": payoutId,
         },
         timeout: 30000,
@@ -180,11 +191,7 @@ export async function getPawaPayPayoutStatus(payoutId: string): Promise<string |
     const response = await axios.get(
       `${PAWAPAY_API_URL}/merchant/v1/payouts/${payoutId}`,
       {
-        headers: {
-          "Authorization": `Bearer ${PAWAPAY_API_KEY}`,
-          "X-Api-Secret": PAWAPAY_API_SECRET,
-          "X-Merchant-Id": PAWAPAY_MERCHANT_ID,
-        },
+        headers: getHeaders(),
         timeout: 10000,
       }
     );
@@ -217,12 +224,7 @@ export async function validatePawaPayPhone(phone: string, network: string): Prom
         correspondent,
       },
       {
-        headers: {
-          "Authorization": `Bearer ${PAWAPAY_API_KEY}`,
-          "X-Api-Secret": PAWAPAY_API_SECRET,
-          "X-Merchant-Id": PAWAPAY_MERCHANT_ID,
-          "Content-Type": "application/json",
-        },
+        headers: getHeaders(),
         timeout: 10000,
       }
     );
