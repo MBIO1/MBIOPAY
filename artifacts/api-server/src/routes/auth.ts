@@ -11,6 +11,7 @@ import { isDisposableEmail } from "../lib/disposableEmails";
 import { sendPasswordResetEmail } from "../lib/emailService";
 import { sendOTP, verifyOTP, isIPBlocked } from "../lib/otpService";
 import speakeasy from "speakeasy";
+import { OAuth2Client } from "google-auth-library";
 
 const router: IRouter = Router();
 
@@ -485,6 +486,85 @@ router.post("/debug/verify-email", async (req, res) => {
     .set({ emailVerified: true, updatedAt: new Date() })
     .where(eq(usersTable.id, user.id));
   res.json({ ok: true, message: `Email verified for ${email}` });
+});
+
+// ─── POST /api/auth/google ────────────────────────────────────────────────────
+const GoogleAuthSchema = z.object({
+  credential: z.string().min(1, "Google credential required"),
+});
+
+router.post("/auth/google", async (req, res) => {
+  const parsed = GoogleAuthSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Google credential required" });
+    return;
+  }
+
+  const { credential } = parsed.data;
+  const clientId = process.env.GOOGLE_CLIENT_ID || "164482455669-9ujlu5kroaqdhms05sacmjbq0aciam06.apps.googleusercontent.com";
+  
+  try {
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: clientId,
+    });
+    
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      res.status(400).json({ error: "Invalid Google token" });
+      return;
+    }
+
+    const email = payload.email.toLowerCase();
+    const googleId = payload.sub;
+    const name = payload.name || email.split("@")[0];
+    
+    // Check if user exists
+    let [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .limit(1);
+
+    if (!user) {
+      // Create new user from Google
+      const uid = randomUUID().slice(0, 8).toUpperCase();
+      const [newUser] = await db.insert(usersTable).values({
+        email,
+        username: name.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20) || `user${Date.now()}`,
+        uid,
+        googleId,
+        emailVerified: true, // Google already verified
+        displayName: name,
+      }).returning();
+      user = newUser;
+    } else if (!user.googleId) {
+      // Link Google to existing account
+      await db.update(usersTable)
+        .set({ googleId, updatedAt: new Date() })
+        .where(eq(usersTable.id, user.id));
+    }
+
+    // Generate tokens
+    const accessToken = signAccess({ id: user.id });
+    const refreshToken = signRefresh({ id: user.id });
+    
+    await db.insert(refreshTokensTable).values({
+      userId: user.id,
+      tokenHash: createHash("sha256").update(refreshToken + (process.env.REFRESH_SECRET ?? "")).digest("hex"),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    res.json({
+      token: accessToken,
+      refreshToken,
+      user: userPayload(user),
+    });
+  } catch (err: any) {
+    console.error("Google auth error:", err);
+    res.status(400).json({ error: "Google authentication failed" });
+  }
 });
 
 export default router;
