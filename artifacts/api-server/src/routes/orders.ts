@@ -240,10 +240,22 @@ router.post("/orders", requireAuth, async (req, res) => {
   const netUsdt = expectedUsdt - fee;
   const payoutUGX = Math.floor(netUsdt * finalRate);
 
+  // Check if any payout provider has sufficient balance
   const flwBalance = await getFlutterwaveUgxBalance();
-  // Only block if we have a confirmed balance that is too low.
-  // null means the balance API is unreachable — allow through optimistically.
-  if (flwBalance !== null && flwBalance < payoutUGX) {
+  const pawapayBalance = await getPawaPayBalance();
+  
+  // PawaPay is preferred provider - check its balance first if enabled
+  const hasPawaPayFunds = isPawaPayEnabled() && pawapayBalance !== null && pawapayBalance.balance >= payoutUGX;
+  const hasFlutterwaveFunds = flwBalance !== null && flwBalance >= payoutUGX;
+  
+  // Block only if both providers are unavailable or have insufficient funds
+  // If PawaPay is enabled but has no funds, fall back to Flutterwave
+  // If Flutterwave has no funds but PawaPay is enabled and has funds, allow
+  const canPayout = hasPawaPayFunds || hasFlutterwaveFunds || 
+                    (isPawaPayEnabled() && pawapayBalance === null) || // PawaPay enabled but balance unknown
+                    (flwBalance === null); // Flutterwave balance unknown
+  
+  if (!canPayout) {
     res.status(503).json({
       error: "Payouts are temporarily unavailable due to insufficient funds. Please try again later.",
     });
