@@ -15,12 +15,6 @@ const router: IRouter = Router();
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
-// Ensure uploads directory exists
-const UPLOAD_DIR = join(process.cwd(), "uploads", "avatars");
-if (!existsSync(UPLOAD_DIR)) {
-  mkdir(UPLOAD_DIR, { recursive: true }).catch(console.error);
-}
-
 const UpdateProfileSchema = z.object({
   displayName: z.string().min(1).max(60).optional(),
   avatarUrl: z
@@ -226,6 +220,12 @@ router.post("/auth/add-phone", requireAuth, async (req, res) => {
 // POST /api/profile/avatar — upload avatar image
 router.post("/profile/avatar", requireAuth, async (req, res) => {
   try {
+    // Ensure uploads directory exists at runtime
+    const uploadDir = join(process.cwd(), "uploads", "avatars");
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
+    }
+
     const { image } = req.body as { image?: string };
 
     if (!image || typeof image !== "string") {
@@ -261,7 +261,7 @@ router.post("/profile/avatar", requireAuth, async (req, res) => {
     // Generate unique filename
     const ext = mimeType.replace("image/", "").replace("jpeg", "jpg");
     const filename = `${randomUUID()}.${ext}`;
-    const filepath = join(UPLOAD_DIR, filename);
+    const filepath = join(uploadDir, filename);
 
     // Save file
     await writeFile(filepath, buffer);
@@ -278,7 +278,7 @@ router.post("/profile/avatar", requireAuth, async (req, res) => {
     res.json({ success: true, avatarUrl });
   } catch (error: any) {
     console.error("[AVATAR UPLOAD] Error:", error);
-    res.status(500).json({ error: "Failed to upload avatar" });
+    res.status(500).json({ error: "Failed to upload avatar: " + error.message });
   }
 });
 
