@@ -90,7 +90,14 @@ export async function sendOTP(email: string, ip: string): Promise<void> {
     createdAt: now,
   });
 
-  await sendVerificationEmail(email, otp);
+  try {
+    await sendVerificationEmail(email, otp);
+    console.log(`[OTP] Verification code sent to ${email}`);
+  } catch (error: any) {
+    console.error(`[OTP] Failed to send email to ${email}:`, error.message);
+    // Still throw the error so the API returns an error to the user
+    throw Object.assign(new Error("Failed to send verification email. Please try again later."), { status: 500 });
+  }
 }
 
 // ─── Verify OTP ───────────────────────────────────────────────────────────────

@@ -4,14 +4,23 @@ const DEV_MODE = !process.env.SMTP_HOST;
 
 function createTransport() {
   if (DEV_MODE) return null;
+  
+  // Configure nodemailer with TLS options for PrivateEmail
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 587),
     secure: Number(process.env.SMTP_PORT ?? 587) === 465,
+    requireTLS: true,
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: "TLSv1.2"
+    },
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    debug: process.env.NODE_ENV !== "production",
+    logger: process.env.NODE_ENV !== "production",
   });
 }
 
@@ -67,14 +76,25 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     return;
   }
 
-  const transporter = createTransport()!;
-  await transporter.sendMail({
-    from: FROM,
-    to: email,
-    subject: "Your MBIO PAY verification code",
-    html,
-    text: `Your MBIO PAY verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you did not sign up, please ignore this email.`,
-  });
+  const transporter = createTransport();
+  if (!transporter) {
+    console.error("[EMAIL] Failed to create transport - SMTP not configured");
+    throw new Error("Email service not configured");
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: FROM,
+      to: email,
+      subject: "Your MBIO PAY verification code",
+      html,
+      text: `Your MBIO PAY verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you did not sign up, please ignore this email.`,
+    });
+    console.log(`[EMAIL] Verification code sent to ${email}: ${info.messageId}`);
+  } catch (error: any) {
+    console.error(`[EMAIL] Failed to send to ${email}:`, error.message);
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
@@ -89,13 +109,18 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
     return;
   }
 
-  const transporter = createTransport()!;
-  await transporter.sendMail({
-    from: FROM,
-    to: email,
-    subject: "Reset your MBIO PAY password",
-    text: `You requested a password reset for your MBIO PAY account.\n\nClick the link below to set a new password. The link expires in 1 hour.\n\n${resetUrl}\n\nIf you did not request a password reset, ignore this email — your account is safe.`,
-    html: `
+  const transporter = createTransport();
+  if (!transporter) {
+    throw new Error("Email service not configured");
+  }
+
+  try {
+    await transporter.sendMail({
+      from: FROM,
+      to: email,
+      subject: "Reset your MBIO PAY password",
+      text: `You requested a password reset for your MBIO PAY account.\n\nClick the link below to set a new password. The link expires in 1 hour.\n\n${resetUrl}\n\nIf you did not request a password reset, ignore this email — your account is safe.`,
+      html: `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
@@ -135,7 +160,12 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
   </table>
 </body>
 </html>`,
-  });
+    });
+    console.log(`[EMAIL] Password reset sent to ${email}`);
+  } catch (error: any) {
+    console.error(`[EMAIL] Failed to send password reset to ${email}:`, error.message);
+    throw error;
+  }
 }
 
 export async function sendTwoFADisabledEmail(email: string): Promise<void> {
@@ -144,13 +174,18 @@ export async function sendTwoFADisabledEmail(email: string): Promise<void> {
     return;
   }
 
-  const transporter = createTransport()!;
-  await transporter.sendMail({
-    from: FROM,
-    to: email,
-    subject: "2FA has been disabled on your MBIO PAY account",
-    text: `Two-factor authentication has been disabled on your MBIO PAY account.\n\nIf this was not you, contact support immediately at +1 213-510-5113.`,
-    html: `
+  const transporter = createTransport();
+  if (!transporter) {
+    throw new Error("Email service not configured");
+  }
+
+  try {
+    await transporter.sendMail({
+      from: FROM,
+      to: email,
+      subject: "2FA has been disabled on your MBIO PAY account",
+      text: `Two-factor authentication has been disabled on your MBIO PAY account.\n\nIf this was not you, contact support immediately at +1 213-510-5113.`,
+      html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0a0a0f;font-family:Arial,sans-serif;">
@@ -176,5 +211,9 @@ export async function sendTwoFADisabledEmail(email: string): Promise<void> {
   </table>
 </body>
 </html>`,
-  });
+    });
+  } catch (error: any) {
+    console.error(`[EMAIL] Failed to send 2FA disabled notification to ${email}:`, error.message);
+    throw error;
+  }
 }
